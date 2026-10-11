@@ -39,6 +39,10 @@ jobs:
       # 第二步：使用 Astro 官方 Action 完成装依赖、构建与产物上传
       - name: Build with Astro
         uses: withastro/action@v3
+        # 传入该 Action 的输入参数
+        with:
+          # 指定 Node 版本：Astro 7 要求 >= 22.12.0，而该 Action 默认使用 Node 20
+          node-version: 22
 
   # 部署任务：把构建产物发布到 GitHub Pages
   deploy:

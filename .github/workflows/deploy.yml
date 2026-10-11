@@ -1,0 +1,61 @@
+# 工作流名称，显示在仓库的 Actions 列表中
+name: Deploy to GitHub Pages
+
+# 触发条件配置
+on:
+  # 当 main 分支收到推送时触发部署
+  push:
+    branches: [main]
+  # 允许在 Actions 页面手动触发一次部署
+  workflow_dispatch:
+
+# 授予工作流访问仓库与发布 Pages 所需的权限
+permissions:
+  # 读取仓库代码内容
+  contents: read
+  # 写入 GitHub Pages
+  pages: write
+  # 生成 OIDC 身份令牌，供部署步骤校验来源
+  id-token: write
+
+# 并发控制：同一时间只保留一个部署任务
+concurrency:
+  # 以「工作流名 + 分支/引用」作为并发分组键
+  group: pages-${{ github.ref }}
+  # 若队列中有新任务，则取消正在等待的旧任务（不取消正在运行的）
+  cancel-in-progress: false
+
+# 定义任务列表
+jobs:
+  # 构建任务：把 Astro 项目编译成静态文件
+  build:
+    # 使用最新版 Ubuntu 运行环境
+    runs-on: ubuntu-latest
+    # 构建步骤序列
+    steps:
+      # 第一步：拉取仓库代码到运行环境
+      - name: Checkout
+        uses: actions/checkout@v4
+      # 第二步：使用 Astro 官方 Action 完成装依赖、构建与产物上传
+      - name: Build with Astro
+        uses: withastro/action@v3
+
+  # 部署任务：把构建产物发布到 GitHub Pages
+  deploy:
+    # 必须等构建任务成功后再执行
+    needs: build
+    # 使用最新版 Ubuntu 运行环境
+    runs-on: ubuntu-latest
+    # 关联到 GitHub Pages 环境
+    environment:
+      # 环境名称固定为 github-pages
+      name: github-pages
+      # 部署完成后的访问地址，取自部署步骤的输出
+      url: ${{ steps.deployment.outputs.page_url }}
+    # 部署步骤序列
+    steps:
+      # 唯一一步：调用官方 Action 发布 Pages
+      - name: Deploy to GitHub Pages
+        # 为该步骤指定 id，供上面的 url 引用
+        id: deployment
+        uses: actions/deploy-pages@v4

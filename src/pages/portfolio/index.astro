@@ -1,0 +1,21 @@
+---
+// 引入全站布局组件
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<!-- 使用全站布局，并传入本页标题 -->
+<BaseLayout title="作品集" description="做过的东西与项目">
+  <!-- 页面标题 -->
+  <h1 class="page-title">作品集</h1>
+  <!-- 占位说明 -->
+  <p class="intro">这个板块还在建设中，之后会把项目与作品整理到这里。</p>
+</BaseLayout>
+
+<!-- 本页专属样式 -->
+<style>
+  /* 页面标题字号 */
+  .page-title { font-size: 30px; margin: 24px 0 6px; }
+
+  /* 说明文字颜色 */
+  .intro { color: var(--text-dim); }
+</style>

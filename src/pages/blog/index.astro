@@ -1,0 +1,74 @@
+---
+// 引入全站布局组件
+import BaseLayout from '../../layouts/BaseLayout.astro';
+// 引入集合查询方法
+import { getCollection } from 'astro:content';
+
+// 读取全部博客文章
+const posts = await getCollection('blog');
+// 按发布日期从新到旧排序
+const sorted = posts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+// 将日期格式化为「年-月-日」
+const formatDate = (date: Date) => date.toISOString().slice(0, 10);
+---
+
+<!-- 使用全站布局，并传入本页标题 -->
+<BaseLayout title="博客" description="全部文章列表">
+  <!-- 页面标题 -->
+  <h1 class="page-title">博客</h1>
+  <!-- 文章数量提示 -->
+  <p class="count">共 {sorted.length} 篇文章</p>
+
+  <!-- 文章列表：遍历全部文章，渲染标题、摘要与日期 -->
+  <ul class="post-list">
+    {sorted.map((post) => (
+      <li>
+        <a href={`/blog/${post.id}`}>
+          <span class="left">
+            <span class="post-title">{post.data.title}</span>
+            <span class="post-desc">{post.data.description}</span>
+          </span>
+          <span class="post-date">{formatDate(post.data.pubDate)}</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+</BaseLayout>
+
+<!-- 本页专属样式 -->
+<style>
+  /* 页面标题字号 */
+  .page-title { font-size: 30px; margin: 24px 0 6px; }
+
+  /* 文章数量提示 */
+  .count { color: var(--text-dim); font-size: 14px; margin: 0 0 24px; }
+
+  /* 去掉列表默认样式 */
+  .post-list { list-style: none; padding: 0; margin: 0; }
+
+  /* 列表项分隔线 */
+  .post-list li { border-bottom: 1px solid var(--border); }
+
+  /* 链接布局：两端对齐，垂直居中 */
+  .post-list a {
+    /* 弹性布局 */
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    /* 内边距与颜色过渡 */
+    padding: 16px 4px; transition: color 0.2s ease;
+  }
+
+  /* 悬停时标题区域变强调色 */
+  .post-list a:hover .post-title { color: var(--accent); }
+
+  /* 左侧内容纵向排列 */
+  .left { display: flex; flex-direction: column; gap: 4px; }
+
+  /* 文章标题字重 */
+  .post-title { font-weight: 600; transition: color 0.2s ease; }
+
+  /* 文章摘要：次要颜色与小字号 */
+  .post-desc { color: var(--text-dim); font-size: 14px; }
+
+  /* 日期不换行 */
+  .post-date { color: var(--text-dim); font-size: 14px; flex-shrink: 0; }
+</style>

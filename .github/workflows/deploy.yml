@@ -41,7 +41,7 @@ jobs:
         uses: withastro/action@v3
         # 传入该 Action 的输入参数
         with:
-          # 指定 Node 版本：Astro 7 要求 >= 22.12.0，而该 Action 默认使用 Node 20
+          # 指定 Node 版本：与 package.json 的 engines 保持一致（>= 22.12.0），该 Action 默认使用 Node 20
           node-version: 22
 
   # 部署任务：把构建产物发布到 GitHub Pages

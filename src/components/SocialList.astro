@@ -1,0 +1,40 @@
+---
+import { Icon } from "astro-icon/components";
+
+// 社交链接列表：图标名来自 @iconify-json/mdi 图标集
+const socialLinks: {
+	// 无障碍朗读用的友好名称
+	friendlyName: string;
+	// 跳转地址
+	link: string;
+	// astro-icon 使用的图标名
+	name: string;
+}[] = [
+	{
+		friendlyName: "GitHub",
+		link: "https://github.com/AXuuure",
+		name: "mdi:github",
+	},
+];
+---
+
+<div class="flex flex-wrap items-end gap-x-2">
+	<p>找到我</p>
+	<ul class="flex flex-1 items-center gap-x-2 sm:flex-initial">
+		{
+			socialLinks.map(({ friendlyName, link, name }) => (
+				<li class="flex">
+					<a
+						class="inline-block hover:text-link drop-shadow-[0px_2.5px_2.5px_rgba(0,0,0,0.175)]"
+						href={link}
+						rel="noreferrer"
+						target="_blank"
+					>
+						<Icon aria-hidden="true" class="h-8 w-8" focusable="false" name={name} />
+						<span class="sr-only">{friendlyName}</span>
+					</a>
+				</li>
+			))
+		}
+	</ul>
+</div>

@@ -1,0 +1,15 @@
+---
+// 引入全局布局
+import PageLayout from "@/layouts/Base.astro";
+
+// 页面级 meta 信息
+const meta = {
+	description: "看起来这个页面飘到太空里去了",
+	title: "找不到页面",
+};
+---
+
+<PageLayout meta={meta}>
+	<h1 class="title mb-6">404 | 页面走丢了</h1>
+	<p class="mb-8">可以用上方的导航回到你想去的地方</p>
+</PageLayout>

@@ -1,0 +1,82 @@
+---
+// Giscus 评论区组件：基于 GitHub Discussions，零后端依赖
+// 配置项来自 src/site.config.ts 的 giscusConfig
+import { giscusConfig } from "@/site.config";
+
+// 判断是否已回填必要 ID：未回填时不渲染评论区，避免加载报错
+const isConfigured = Boolean(giscusConfig.repoId && giscusConfig.categoryId);
+---
+
+{/* 已配置时渲染外层容器 + Giscus 官方脚本 */}
+{
+	isConfigured && (
+		// 外层容器使用 giscus 类名，官方脚本会把评论 iframe 插入到该容器内
+		<div class="giscus mt-10">
+			{/* 必须使用 is:inline：Giscus 依赖 document.currentScript 读取 data-* 配置，被 Astro 打包后会失效 */}
+			<script
+				is:inline
+				src="https://giscus.app/client.js"
+				data-repo={giscusConfig.repo}
+				data-repo-id={giscusConfig.repoId}
+				data-category={giscusConfig.category}
+				data-category-id={giscusConfig.categoryId}
+				data-mapping={giscusConfig.mapping}
+				data-strict="0"
+				data-reactions-enabled={giscusConfig.reactionsEnabled}
+				data-emit-metadata="0"
+				data-input-position={giscusConfig.inputPosition}
+				data-theme={giscusConfig.theme}
+				data-lang={giscusConfig.lang}
+				data-loading="lazy"
+				crossorigin="anonymous"
+				async
+			></script>
+		</div>
+	)
+}
+
+{/* 未配置时：仅在开发环境提示如何启用，生产构建静默跳过 */}
+{!isConfigured && import.meta.env.DEV && (
+	<p class="mt-10 text-sm text-lighter">
+		评论区尚未启用：请先在 https://giscus.app 生成 repoId 与 categoryId，回填到
+		src/site.config.ts 的 giscusConfig 中。
+	</p>
+)}
+
+<script>
+	// 把站点当前的明暗主题同步给 Giscus iframe，避免评论区与页面主题不一致
+	const syncGiscusTheme = (isDark: boolean) => {
+		// 找到 Giscus 渲染出的 iframe
+		const frame = document.querySelector<HTMLIFrameElement>("iframe.giscus-frame");
+		// iframe 尚未创建时直接返回
+		if (!frame?.contentWindow) return;
+		// 通过官方 postMessage 协议更新主题
+		frame.contentWindow.postMessage(
+			{ giscus: { setConfig: { theme: isDark ? "dark" : "light" } } },
+			"https://giscus.app",
+		);
+	};
+
+	// 读取根元素上的 data-theme 判断当前是否深色
+	const isDarkNow = () => document.documentElement.getAttribute("data-theme") === "dark";
+
+	// 站点主题切换时同步
+	document.addEventListener("theme-change", (event: Event) => {
+		// 事件细节中携带新的主题名
+		const theme = (event as CustomEvent).detail?.theme;
+		syncGiscusTheme(theme === "dark");
+	});
+
+	// iframe 是异步加载的，做有限次轮询以完成首次同步
+	let attempts = 0;
+	const initialSync = setInterval(() => {
+		// 找到 iframe 即同步并停止轮询
+		if (document.querySelector("iframe.giscus-frame")) {
+			syncGiscusTheme(isDarkNow());
+			clearInterval(initialSync);
+			return;
+		}
+		// 最多尝试 20 次（约 10 秒）后放弃
+		if (++attempts >= 20) clearInterval(initialSync);
+	}, 500);
+</script>

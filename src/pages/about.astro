@@ -1,0 +1,43 @@
+---
+// 引入全局布局与站点配置
+import PageLayout from "@/layouts/Base.astro";
+import { siteConfig } from "@/site.config";
+
+// 页面级 meta 信息
+const meta = {
+	description: `关于 ${siteConfig.title}`,
+	title: "关于",
+};
+---
+
+<PageLayout meta={meta}>
+	<h1 class="title mb-6">关于</h1>
+	<div class="prose prose-citrus max-w-none">
+		<p>
+			你好，这里是 {siteConfig.title}，{siteConfig.author} 的个人空间。
+		</p>
+		<p>我会在这里放三样东西：</p>
+		<ul class="list-inside list-disc" role="list">
+			<li>博客：沉淀思考，把学到的、想清楚的写下来</li>
+			<li>笔记：更碎片化的记录与随手整理</li>
+			<li>实验：一些好玩的页面交互，纯粹为了好玩</li>
+		</ul>
+		<p>
+			站点用 <a
+				class="citrus-link inline-block"
+				href="https://astro.build"
+				rel="noreferrer"
+				target="_blank">Astro</a
+			> 构建，托管在 GitHub Pages 上：内容页面输出为纯静态 HTML，加载快；需要交互的地方再按需挂载组件。
+		</p>
+		<p>
+			想交流或者看代码，可以到我的 <a
+				aria-label="GitHub 主页"
+				class="citrus-link inline-block"
+				href="https://github.com/AXuuure"
+				rel="noreferrer"
+				target="_blank">GitHub</a
+			> 看看。
+		</p>
+	</div>
+</PageLayout>

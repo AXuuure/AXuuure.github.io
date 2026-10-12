@@ -49,11 +49,11 @@ export const giscusConfig = {
 	// 承载评论 Discussion 的仓库
 	repo: "AXuuure/AXuuure.github.io",
 	// 仓库 ID：在 giscus.app 填入仓库名后自动生成
-	repoId: "",
+	repoId: "R_kgDOVE2TaA",
 	// Discussion 分类名：需与下面的分类 ID 对应
 	category: "Announcements",
 	// 分类 ID：在 giscus.app 填入分类名后自动生成
-	categoryId: "",
+	categoryId: "DIC_kwDOVE2TaM4DIGXB",
 	// 页面与 Discussion 的映射方式：按路径名匹配
 	mapping: "pathname",
 	// 是否开启 emoji 反应（即点赞）

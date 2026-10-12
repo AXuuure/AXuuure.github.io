@@ -82,28 +82,27 @@ const { headings } = await render(series);
 		}
 	</div>
 
-	<div class="left-0 right-12 z-50 ml-auto w-fit md:absolute">
-		<button
-			id="to-top-button"
-			class="fixed bottom-14 flex h-12 w-12 text-light translate-y-28 items-center justify-center rounded-full border-2 border-special-lighter bg-bgColor text-3xl drop-shadow-xl transition-all duration-300 hover:text-accent-two data-[show=true]:translate-y-0 data-[show=true]:opacity-100"
-			aria-label="回到顶部"
-			data-show="false"
-		>	
-			<span class="absolute inset-0 rounded-full bg-special-light flex items-center justify-center" aria-hidden="true">
-				<svg
-					class="h-6 w-6"
-					fill="none"
-					focusable="false"
-					stroke="currentColor"
-					stroke-width="2"
-					viewBox="0 0 24 24"
-					xmlns="http://www.w3.org/2000/svg"
-				>
-					<path d="M4.5 15.75l7.5-7.5 7.5 7.5" stroke-linecap="round" stroke-linejoin="round"></path>
-				</svg>
-			</span>
-		</button>
-	</div>
+	<!-- 回到顶部按钮：滚动超过阈值后出现；移动端放左下角，避开右下角的系列浮动按钮 -->
+	<button
+		id="to-top-button"
+		class="fixed bottom-14 left-4 md:left-auto md:right-8 z-50 flex h-12 w-12 text-light translate-y-28 items-center justify-center rounded-full border-2 border-special-lighter bg-bgColor text-3xl drop-shadow-xl transition-all duration-300 hover:text-accent-two data-[show=true]:translate-y-0 data-[show=true]:opacity-100"
+		aria-label="回到顶部"
+		data-show="false"
+	>
+		<span class="absolute inset-0 rounded-full bg-special-light flex items-center justify-center" aria-hidden="true">
+			<svg
+				class="h-6 w-6"
+				fill="none"
+				focusable="false"
+				stroke="currentColor"
+				stroke-width="2"
+				viewBox="0 0 24 24"
+				xmlns="http://www.w3.org/2000/svg"
+			>
+				<path d="M4.5 15.75l7.5-7.5 7.5 7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+			</svg>
+		</span>
+	</button>
 
 	<!-- Кнопка серий для мобильных экранов -->
 	<mobile-button
@@ -280,20 +279,25 @@ const { headings } = await render(series);
 </script>
 
 <script>
-	const scrollBtn = document.getElementById("to-top-button") as HTMLButtonElement;
-	const targetHeader = document.querySelector("header") as HTMLElement;
+	// 向下滚动超过该像素数后才显示按钮
+	const SCROLL_THRESHOLD = 300;
+	// 获取按钮元素（页面不存在该按钮时跳过，避免报错）
+	const scrollBtn = document.getElementById("to-top-button") as HTMLButtonElement | null;
 
-	function callback(entries: IntersectionObserverEntry[]) {
-		entries.forEach((entry) => {
-			// Show the scroll to top button when the <header> is out of view
-			scrollBtn.dataset.show = (!entry.isIntersecting).toString();
+	if (scrollBtn) {
+		// 根据当前滚动位置切换显示状态
+		// 原先用 IntersectionObserver 监听 <header>，但 header 在移动端是 fixed 的，永远处于可视区，导致按钮从不出现
+		const updateScrollBtn = () => {
+			scrollBtn.dataset.show = (window.scrollY > SCROLL_THRESHOLD).toString();
+		};
+
+		// 点击后平滑滚回顶部
+		scrollBtn.addEventListener("click", () => {
+			window.scrollTo({ behavior: "smooth", top: 0 });
 		});
+
+		// 监听滚动（passive 不阻塞滚动），并先同步一次初始状态
+		window.addEventListener("scroll", updateScrollBtn, { passive: true });
+		updateScrollBtn();
 	}
-
-	scrollBtn.addEventListener("click", () => {
-		document.documentElement.scrollTo({ behavior: "smooth", top: 0 });
-	});
-
-	const observer = new IntersectionObserver(callback);
-	observer.observe(targetHeader);
 </script>

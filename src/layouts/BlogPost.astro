@@ -81,35 +81,34 @@ const { headings } = await render(post);
 		{!!headings.length && (
 			<aside 
 				id="toc-panel" 
-				class="md:sticky md:top-20 z-10 hidden md:w-[14rem] md:min-w-[14rem] md:rounded-lg md:block"
+				class="hidden fixed inset-0 z-40 overflow-y-auto bg-bgColor p-4 md:sticky md:top-20 md:z-10 md:block md:inset-auto md:h-auto md:w-[14rem] md:min-w-[14rem] md:overflow-visible md:rounded-lg md:bg-transparent md:p-0"
 			>
 				<TOC headings={headings} />
 			</aside>
 		)}
 	</div>
 
-	<div class="left-0 right-12 z-50 ml-auto w-fit md:absolute">
-		<button
-			id="to-top-button"
-			class="fixed bottom-14 flex h-12 w-12 text-light translate-y-28 items-center justify-center rounded-full bg-bgColor text-3xl drop-shadow-xl transition-all duration-300 hover:text-accent-two data-[show=true]:translate-y-0 data-[show=true]:opacity-100"
-			aria-label="回到顶部"
-			data-show="false"
-		>	
-			<span class="absolute inset-0 rounded-full bg-special-lighter flex items-center justify-center" aria-hidden="true">
-				<svg
-					class="h-6 w-6"
-					fill="none"
-					focusable="false"
-					stroke="currentColor"
-					stroke-width="2"
-					viewBox="0 0 24 24"
-					xmlns="http://www.w3.org/2000/svg"
-				>
-					<path d="M4.5 15.75l7.5-7.5 7.5 7.5" stroke-linecap="round" stroke-linejoin="round"></path>
-				</svg>
-			</span>
-		</button>
-	</div>
+	<!-- 回到顶部按钮：滚动超过阈值后出现；移动端放左下角，避开右下角的系列/目录浮动按钮 -->
+	<button
+		id="to-top-button"
+		class="fixed bottom-14 left-4 md:left-auto md:right-8 z-50 flex h-12 w-12 text-light translate-y-28 items-center justify-center rounded-full bg-bgColor text-3xl drop-shadow-xl transition-all duration-300 hover:text-accent-two data-[show=true]:translate-y-0 data-[show=true]:opacity-100"
+		aria-label="回到顶部"
+		data-show="false"
+	>
+		<span class="absolute inset-0 rounded-full bg-special-lighter flex items-center justify-center" aria-hidden="true">
+			<svg
+				class="h-6 w-6"
+				fill="none"
+				focusable="false"
+				stroke="currentColor"
+				stroke-width="2"
+				viewBox="0 0 24 24"
+				xmlns="http://www.w3.org/2000/svg"
+			>
+				<path d="M4.5 15.75l7.5-7.5 7.5 7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+			</svg>
+		</span>
+	</button>
 
 	<!-- Series button for mobile screens -->
 	{seriesId && (
@@ -124,21 +123,22 @@ const { headings } = await render(post);
 		</mobile-button>
 	)}
 
-	<!-- NEEDS IMPROVEMENT!!! -->
-	<!-- Table of Contents button for mobile screens -->
-	<!--
+	<!-- 移动端目录按钮：< 768px 时显示，点击拉出全屏目录面板 -->
 	{!!headings.length && (
 		<mobile-button
 			id="toggle-toc-mobile"
-			class="size-12 flex items-center justify-center block sm:hidden fixed bottom-20 shadow-[0px_10px_25px_rgba(0,0,0,0.15)] border border-special-lighter right-4 z-50 rounded-lg bg-bgColor text-accent-base hover:text-accent-base/90"
+			class:list={[
+				"size-12 flex items-center justify-center block md:hidden fixed shadow-[0px_10px_25px_rgba(0,0,0,0.15)] border border-special-lighter right-4 z-50 rounded-lg bg-bgColor text-accent-base hover:text-accent-base/90",
+				// 有系列按钮时上移，避免两个浮动按钮叠在一起
+				seriesId ? "bottom-20" : "bottom-4",
+			]}
 			aria-label="切换目录面板"
-			>
-				<span class="absolute inset-0 rounded-lg flex items-center justify-center bg-special-light hover:text-accent-base/90">
-				<Icon class="size-8" name="solar:clipboard-list-bold"/>
+		>
+			<span class="absolute inset-0 rounded-lg flex items-center justify-center bg-special-light hover:text-accent-base/90">
+				<Icon class="size-8" name="solar:clipboard-list-bold" />
 			</span>
 		</mobile-button>
 	)}
-	-->
 </BaseLayout>
 
 <!-- Copy code button -->
@@ -184,136 +184,120 @@ const { headings } = await render(post);
 
 <script>
 	const ANIMATION_DURATION = 300;
-	// Get the button and panel elements
+	// 获取面板与各切换/关闭按钮元素
 	const togglePanelBtn = document.getElementById("toggle-panel");
 	const closePanelBtn = document.getElementById("close-panel");
 	const seriesPanel = document.getElementById("series-panel");
 	const togglePanelMobileBtn = document.getElementById("toggle-panel-mobile");
 
-	// Ensure the seriesPanel exists
-	if (!seriesPanel) {
-		console.error("Element series-panel not found");
-		throw new Error("series-panel is required");
-	}
+	// 文章未加入任何系列时页面上不存在该面板，直接跳过初始化（否则会往控制台抛错）
+	if (seriesPanel) {
+		// 判断面板当前是否可见
+		const isPanelVisible = () => {
+			const isScreenLg = window.matchMedia("(min-width: 1024px)").matches; // 大屏
+			return (
+				(isScreenLg && seriesPanel.classList.contains("lg:block")) ||
+				(!isScreenLg && !seriesPanel.classList.contains("hidden"))
+			);
+		};
 
-	// Function to check if the panel is visible
-	const isPanelVisible = () => {
-		const isScreenLg = window.matchMedia("(min-width: 1024px)").matches; // Large screens
-		return (
-			(isScreenLg && seriesPanel.classList.contains("lg:block")) ||
-			(!isScreenLg && !seriesPanel.classList.contains("hidden"))
-		);
-	};
+		// 隐藏面板
+		const hidePanel = () => {
+			seriesPanel.classList.add("opacity-0", "-translate-x-full");
+			setTimeout(() => {
+				seriesPanel.classList.remove("block", "lg:block");
+				seriesPanel.classList.add("hidden");
+			}, ANIMATION_DURATION);
+		};
 
-	// Function to hide the panel
-	const hidePanel = () => {
-		seriesPanel.classList.add("opacity-0", "-translate-x-full");
-		setTimeout(() => {
-			seriesPanel.classList.remove("block", "lg:block");
-			seriesPanel.classList.add("hidden");
-		}, ANIMATION_DURATION);
-	};
+		// 显示面板
+		const showPanel = () => {
+			seriesPanel.classList.remove("hidden");
+			seriesPanel.classList.add("block", "lg:block");
+			setTimeout(() => {
+				seriesPanel.classList.remove("opacity-0", "-translate-x-full");
+			}, 10);
+		};
 
-	// Function to show the panel
-	const showPanel = () => {
-		seriesPanel.classList.remove("hidden");
-		seriesPanel.classList.add("block", "lg:block");
-		setTimeout(() => {
-			seriesPanel.classList.remove("opacity-0", "-translate-x-full");
-		}, 10);
-	};
+		// 桌面端与移动端按钮共用的切换逻辑
+		const togglePanel = () => {
+			if (isPanelVisible()) {
+				hidePanel();
+			} else {
+				showPanel();
+			}
+		};
 
-	// Common event handler for both buttons
-	const togglePanel = () => {
-		if (isPanelVisible()) {
-			hidePanel(); // If visible, hide it
-		} else {
-			showPanel(); // If hidden, show it
+		// 绑定桌面端切换按钮
+		if (togglePanelBtn) {
+			togglePanelBtn.addEventListener("click", togglePanel);
 		}
-	};
 
-	// Event handlers for both buttons
-	if (togglePanelBtn) {
-		togglePanelBtn.addEventListener("click", togglePanel);
-	} else {
-		console.error("Element toggle-panel not found");
-	}
+		// 绑定移动端切换按钮
+		if (togglePanelMobileBtn) {
+			togglePanelMobileBtn.addEventListener("click", togglePanel);
+		}
 
-	if (togglePanelMobileBtn) {
-		togglePanelMobileBtn.addEventListener("click", togglePanel);
-	} else {
-		console.error("Element toggle-panel-mobile not found");
-	}
-
-	if (closePanelBtn) {
-		closePanelBtn.addEventListener("click", hidePanel);
-	} else {
-		console.error("Element close-panel not found");
+		// 绑定面板内的关闭按钮
+		if (closePanelBtn) {
+			closePanelBtn.addEventListener("click", hidePanel);
+		}
 	}
 </script>
 
 <script>
-	// Get the button and panel elements
+	// 获取目录面板与各切换/关闭按钮元素
 	const toggleTocBtn = document.getElementById('toggle-toc');
 	const closeTocBtn = document.getElementById('close-toc');
 	const tocPanel = document.getElementById('toc-panel');
 	const toggleTocMobileBtn = document.getElementById("toggle-toc-mobile");
 
-	// Check for the panel's presence (required for functionality)
-	if (!tocPanel) {
-		console.error('Element toc-panel not found');
-		throw new Error('toc-panel is required');
-	}
+	// 文章没有标题层级时页面上不存在目录面板，直接跳过初始化（否则会往控制台抛错）
+	if (tocPanel) {
+		// 判断目录当前是否可见
+		const isTocVisible = () => {
+			const isScreenMd = window.matchMedia("(min-width: 768px)").matches;
+			return (
+				(isScreenMd && tocPanel.classList.contains("md:block")) ||
+				(!isScreenMd && !tocPanel.classList.contains("hidden"))
+			);
+		};
 
-	// Function to check if the table of contents is visible
-	const isTocVisible = () => {
-		const isScreenMd = window.matchMedia("(min-width: 768px)").matches;
-		return (
-			(isScreenMd && tocPanel.classList.contains("md:block")) ||
-			(!isScreenMd && !tocPanel.classList.contains("hidden"))
-		);
-	};
+		// 隐藏目录
+		const hideToc = () => {
+			tocPanel.classList.add('hidden');
+			tocPanel.classList.remove('md:block');
+		};
 
-	// Function to hide the panel
-	const hideToc = () => {
-		tocPanel.classList.add('hidden');
-		tocPanel.classList.remove('md:block');
-	};
+		// 显示目录
+		const showToc = () => {
+			tocPanel.classList.remove('hidden');
+			tocPanel.classList.add('md:block');
+		};
 
-	// Function to show the panel
-	const showToc = () => {
-		tocPanel.classList.remove('hidden');
-		tocPanel.classList.add('md:block');
-	};
+		// 桌面端与移动端按钮共用的切换逻辑
+		const toggleToc = () => {
+			if (isTocVisible()) {
+				hideToc();
+			} else {
+				showToc();
+			}
+		};
 
-	// Common event handler for both buttons
-	const toggleToc = () => {
-		if (isTocVisible()) {
-			hideToc(); // If visible, hide it
-		} else {
-			showToc(); // If hidden, show it
+		// 绑定桌面端切换按钮
+		if (toggleTocBtn) {
+			toggleTocBtn.addEventListener("click", toggleToc);
 		}
-	};
-	
-	// Add event handler for the toggle button
-	if (toggleTocBtn) {
-		toggleTocBtn.addEventListener("click", toggleToc);
-	} else {
-		console.error('Element toggle-toc not found');
-	}
 
-	// Add event handler for the toggle button (mobile)
-	if (toggleTocMobileBtn) {
-		toggleTocMobileBtn.addEventListener("click", toggleToc);
-	} else {
-		console.error('Element toggle-toc-mobile not found');
-	}
+		// 绑定移动端切换按钮
+		if (toggleTocMobileBtn) {
+			toggleTocMobileBtn.addEventListener("click", toggleToc);
+		}
 
-	// Add event handler for the close button
-	if (closeTocBtn) {
-		closeTocBtn.addEventListener('click', hideToc);
-	} else {
-		console.error('Element close-toc not found');
+		// 绑定面板内的关闭按钮
+		if (closeTocBtn) {
+			closeTocBtn.addEventListener('click', hideToc);
+		}
 	}
 </script>
 
@@ -331,24 +315,29 @@ const { headings } = await render(post);
 	});
 </script>
 
-<!-- Scroll to top button -->
+<!-- 回到顶部按钮的显示逻辑 -->
 <script>
-	const scrollBtn = document.getElementById("to-top-button") as HTMLButtonElement;
-	const targetHeader = document.querySelector("header") as HTMLElement;
+	// 向下滚动超过该像素数后才显示按钮
+	const SCROLL_THRESHOLD = 300;
+	// 获取按钮元素（页面不存在该按钮时跳过，避免报错）
+	const scrollBtn = document.getElementById("to-top-button") as HTMLButtonElement | null;
 
-	function callback(entries: IntersectionObserverEntry[]) {
-		entries.forEach((entry) => {
-			// Show the scroll to top button when the <header> is out of view
-			scrollBtn.dataset.show = (!entry.isIntersecting).toString();
+	if (scrollBtn) {
+		// 根据当前滚动位置切换显示状态
+		// 原先用 IntersectionObserver 监听 <header>，但 header 在移动端是 fixed 的，永远处于可视区，导致按钮从不出现
+		const updateScrollBtn = () => {
+			scrollBtn.dataset.show = (window.scrollY > SCROLL_THRESHOLD).toString();
+		};
+
+		// 点击后平滑滚回顶部
+		scrollBtn.addEventListener("click", () => {
+			window.scrollTo({ behavior: "smooth", top: 0 });
 		});
+
+		// 监听滚动（passive 不阻塞滚动），并先同步一次初始状态
+		window.addEventListener("scroll", updateScrollBtn, { passive: true });
+		updateScrollBtn();
 	}
-
-	scrollBtn.addEventListener("click", () => {
-		document.documentElement.scrollTo({ behavior: "smooth", top: 0 });
-	});
-
-	const observer = new IntersectionObserver(callback);
-	observer.observe(targetHeader);
 </script>
 
 <!-- REQUIRES IMPROVEMENT!!! -->

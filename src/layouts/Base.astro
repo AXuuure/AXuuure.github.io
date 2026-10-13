@@ -4,6 +4,8 @@ import SkipLink from "@/components/SkipLink.astro";
 import ThemeProvider from "@/components/ThemeProvider.astro";
 import Header from "@/components/layout/Header.astro";
 import Footer from "@/components/layout/Footer.astro";
+import MusicPlayer from "@/components/MusicPlayer.astro";
+import { ClientRouter } from "astro:transitions";
 import { siteConfig } from "@/site.config";
 import type { SiteMeta } from "@/types";
 
@@ -22,6 +24,13 @@ const {
 >
 	<head>
 		<BaseHead articleDate={articleDate} description={description} ogImage={ogImage} title={title} />
+		<!--
+			ClientRouter 负责把站内跳转变成 SPA 式的客户端导航：
+			- 导航时不再整页刷新（不会闪白），只替换 <head>/<body> 的内容
+			- 悬浮音乐播放器由 MusicPlayer 组件挂到 <html> 之下，不在被替换的范围内，
+			  因此导航时不会被卸载，iframe 不重载，音乐可以持续播放
+		-->
+		<ClientRouter />
 	</head>
 	<body class="min-w-4xl relative m-auto min-h-screen w-full max-w-6xl grow bg-bgColor">
 		<ThemeProvider />
@@ -56,5 +65,12 @@ const {
 				</div>
 			</div>
 		</div>
+
+		<!--
+			全局悬浮音乐播放器。
+			这里只输出一个 <template> 载体，播放器真正的 DOM 由组件脚本克隆后挂到 <html> 之下，
+			这样它就不在 Astro 每次导航要替换的 <body> 范围内，从而做到跨页持续播放。
+		-->
+		<MusicPlayer />
 	</body>
 </html>

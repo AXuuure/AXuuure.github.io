@@ -50,8 +50,8 @@ const meta = {
 </PageLayout>
 
 <script>
-	// Wait for the content to fully load
-	document.addEventListener("DOMContentLoaded", () => {
+	// 初始化头部右上角的按钮面板（搜索 + 主题切换）
+	function initButtonsPanel() {
 		const buttonsPanel = document.getElementById("buttons-panel");
 		
 		if (buttonsPanel) {
@@ -60,5 +60,10 @@ const meta = {
 		} else {
 			console.error("Element with ID 'buttons-panel' not found.");
 		}
-	});
+	}
+
+	// 首次加载时立即初始化
+	initButtonsPanel();
+	// 客户端导航后 DOM 被替换，需要重新初始化
+	document.addEventListener("astro:page-load", initButtonsPanel);
 </script>

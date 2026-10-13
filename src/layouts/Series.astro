@@ -130,143 +130,139 @@ const { headings } = await render(series);
 </BaseLayout>
 
 <script>
+	// 面板展开 / 收起的动画时长（毫秒）
 	const ANIMATION_DURATION = 300;
-	// Получаем элементы кнопок и панели
-	const togglePanelBtn = document.getElementById("toggle-panel");
-	const closePanelBtn = document.getElementById("close-panel");
-	const seriesPanel = document.getElementById("series-panel");
-	const togglePanelMobileBtn = document.getElementById("toggle-panel-mobile");
 
-	// Убедимся, что seriesPanel существует
-	if (!seriesPanel) {
-		console.error("Элемент series-panel не найден");
-		throw new Error("series-panel is required");
+	// 初始化系列面板的交互
+	function initSeriesPanel() {
+		// 获取面板与各切换/关闭按钮元素
+		const togglePanelBtn = document.getElementById("toggle-panel");
+		const closePanelBtn = document.getElementById("close-panel");
+		const seriesPanel = document.getElementById("series-panel");
+		const togglePanelMobileBtn = document.getElementById("toggle-panel-mobile");
+
+		// 当前页面没有系列面板时直接跳过（客户端导航后可能切到无面板的页面）
+		if (!seriesPanel) return;
+
+		// 判断面板当前是否可见
+		const isPanelVisible = () => {
+			const isScreenLg = window.matchMedia("(min-width: 1024px)").matches; // 大屏
+			return (
+				(isScreenLg && seriesPanel.classList.contains("lg:block")) ||
+				(!isScreenLg && !seriesPanel.classList.contains("hidden"))
+			);
+		};
+
+		// 隐藏面板
+		const hidePanel = () => {
+			seriesPanel.classList.add("opacity-0", "-translate-x-full");
+			setTimeout(() => {
+				seriesPanel.classList.remove("block", "lg:block");
+				seriesPanel.classList.add("hidden");
+			}, ANIMATION_DURATION);
+		};
+
+		// 显示面板
+		const showPanel = () => {
+			seriesPanel.classList.remove("hidden");
+			seriesPanel.classList.add("block", "lg:block");
+			setTimeout(() => {
+				seriesPanel.classList.remove("opacity-0", "-translate-x-full");
+			}, 10);
+		};
+
+		// 桌面端与移动端按钮共用的切换逻辑
+		const togglePanel = () => {
+			if (isPanelVisible()) {
+				hidePanel(); // 可见则隐藏
+			} else {
+				showPanel(); // 隐藏则显示
+			}
+		};
+
+		// 绑定按钮的小工具：用 dataset 做幂等标记，避免重复绑定导致一次点击切换两下
+		const bind = (el: HTMLElement | null, handler: () => void) => {
+			if (!el || el.dataset.bound === "true") return;
+			el.dataset.bound = "true";
+			el.addEventListener("click", handler);
+		};
+
+		// 依次绑定：桌面端切换按钮、移动端切换按钮、面板内的关闭按钮
+		bind(togglePanelBtn, togglePanel);
+		bind(togglePanelMobileBtn, togglePanel);
+		bind(closePanelBtn, hidePanel);
 	}
 
-	// Функция для проверки, видима ли панель
-	const isPanelVisible = () => {
-		const isScreenLg = window.matchMedia("(min-width: 1024px)").matches; // Большие экраны
-		return (
-			(isScreenLg && seriesPanel.classList.contains("lg:block")) ||
-			(!isScreenLg && !seriesPanel.classList.contains("hidden"))
-		);
-	};
-
-	// Функция для скрытия панели
-	const hidePanel = () => {
-		seriesPanel.classList.add("opacity-0", "-translate-x-full");
-		setTimeout(() => {
-			seriesPanel.classList.remove("block", "lg:block");
-			seriesPanel.classList.add("hidden");
-		}, ANIMATION_DURATION);
-	};
-
-	// Функция для показа панели
-	const showPanel = () => {
-		seriesPanel.classList.remove("hidden");
-		seriesPanel.classList.add("block", "lg:block");
-		setTimeout(() => {
-			seriesPanel.classList.remove("opacity-0", "-translate-x-full");
-		}, 10);
-	};
-
-	// Общий обработчик для обеих кнопок
-	const togglePanel = () => {
-		if (isPanelVisible()) {
-			hidePanel(); // Если видима, скрываем
-		} else {
-			showPanel(); // Если скрыта, показываем
-		}
-	};
-
-	// Обработчики событий для обеих кнопок
-	if (togglePanelBtn) {
-		togglePanelBtn.addEventListener("click", togglePanel);
-	} else {
-		console.error("Элемент toggle-panel не найден");
-	}
-
-	if (togglePanelMobileBtn) {
-		togglePanelMobileBtn.addEventListener("click", togglePanel);
-	} else {
-		console.error("Элемент toggle-panel-mobile не найден");
-	}
-
-	if (closePanelBtn) {
-		closePanelBtn.addEventListener("click", hidePanel);
-	} else {
-		console.error("Элемент close-panel не найден");
-	}
+	// 首次加载时立即初始化
+	initSeriesPanel();
+	// 客户端导航后 DOM 被替换，需要重新初始化
+	document.addEventListener("astro:page-load", initSeriesPanel);
 </script>
 
 <script>
-	// Получаем элементы кнопок и панели
-	const toggleTocBtn = document.getElementById('toggle-toc');
-	const closeTocBtn = document.getElementById('close-toc');
-	const tocPanel = document.getElementById('toc-panel');
-	const toggleTocMobileBtn = document.getElementById("toggle-toc-mobile");
+	// 初始化目录（TOC）面板的交互
+	function initTocPanel() {
+		// 获取目录面板与各切换/关闭按钮元素
+		const toggleTocBtn = document.getElementById('toggle-toc');
+		const closeTocBtn = document.getElementById('close-toc');
+		const tocPanel = document.getElementById('toc-panel');
+		const toggleTocMobileBtn = document.getElementById("toggle-toc-mobile");
 
-	// Проверяем наличие панели (обязательно для работы)
-	if (!tocPanel) {
-		console.error('Элемент toc-panel не найден');
-		throw new Error('toc-panel is required');
+		// 当前页面没有目录面板时直接跳过（客户端导航后可能切到无面板的页面）
+		if (!tocPanel) return;
+
+		// 判断目录当前是否可见
+		const isTocVisible = () => {
+			const isScreenMd = window.matchMedia("(min-width: 768px)").matches;
+			return (
+				(isScreenMd && tocPanel.classList.contains("md:block")) ||
+				(!isScreenMd && !tocPanel.classList.contains("hidden"))
+			);
+		};
+
+		// 隐藏目录
+		const hideToc = () => {
+			tocPanel.classList.add('hidden');
+			tocPanel.classList.remove('md:block');
+		};
+
+		// 显示目录
+		const showToc = () => {
+			tocPanel.classList.remove('hidden');
+			tocPanel.classList.add('md:block');
+		};
+
+		// 桌面端与移动端按钮共用的切换逻辑
+		const toggleToc = () => {
+			if (isTocVisible()) {
+				hideToc(); // 可见则隐藏
+			} else {
+				showToc(); // 隐藏则显示
+			}
+		};
+
+		// 绑定按钮的小工具：用 dataset 做幂等标记，避免重复绑定导致一次点击切换两下
+		const bind = (el: HTMLElement | null, handler: () => void) => {
+			if (!el || el.dataset.bound === "true") return;
+			el.dataset.bound = "true";
+			el.addEventListener("click", handler);
+		};
+
+		// 依次绑定：桌面端切换按钮、移动端切换按钮、面板内的关闭按钮
+		bind(toggleTocBtn, toggleToc);
+		bind(toggleTocMobileBtn, toggleToc);
+		bind(closeTocBtn, hideToc);
 	}
 
-	// Функция для проверки, видима ли таблица контента
-	const isTocVisible = () => {
-		const isScreenMd = window.matchMedia("(min-width: 768px)").matches;
-		return (
-			(isScreenMd && tocPanel.classList.contains("md:block")) ||
-			(!isScreenMd && !tocPanel.classList.contains("hidden"))
-		);
-	};
-
-	// Функция для скрытия панели
-	const hideToc = () => {
-		tocPanel.classList.add('hidden');
-		tocPanel.classList.remove('md:block');
-	};
-
-	// Функция для показа панели
-	const showToc = () => {
-		tocPanel.classList.remove('hidden');
-		tocPanel.classList.add('md:block');
-	};
-
-	// Общий обработчик для обеих кнопок
-	const toggleToc = () => {
-		if (isTocVisible()) {
-			hideToc(); // Если видима, скрываем
-		} else {
-			showToc(); // Если скрыта, показываем
-		}
-	};
-	
-	// Добавляем обработчик для кнопки переключения
-	if (toggleTocBtn) {
-		toggleTocBtn.addEventListener("click", toggleToc);
-	} else {
-		console.error('Элемент toggle-toc не найден');
-	}
-
-	// Добавляем обработчик для кнопки переключения
-	if (toggleTocMobileBtn) {
-		toggleTocMobileBtn.addEventListener("click", toggleToc);
-	} else {
-		console.error('Элемент toggle-toc-mobile не найден');
-	}
-
-	// Добавляем обработчик для кнопки закрытия
-	if (closeTocBtn) {
-		closeTocBtn.addEventListener('click', hideToc);
-	} else {
-		console.error('Элемент close-toc не найден');
-	}
+	// 首次加载时立即初始化
+	initTocPanel();
+	// 客户端导航后 DOM 被替换，需要重新初始化
+	document.addEventListener("astro:page-load", initTocPanel);
 </script>
 
 <script>
-  // Ждем загрузки контента
-  document.addEventListener("DOMContentLoaded", () => {
+  // 初始化头部右上角的按钮面板（搜索 + 主题切换）
+  function initButtonsPanel() {
     const buttonsPanel = document.getElementById("buttons-panel");
     
     if (buttonsPanel) {
@@ -275,16 +271,30 @@ const { headings } = await render(series);
     } else {
       console.error("Элемент с ID 'buttons-panel' не найден.");
     }
-  });
+  }
+
+  // 首次加载时立即初始化
+  initButtonsPanel();
+  // 客户端导航后 DOM 被替换，需要重新初始化
+  document.addEventListener("astro:page-load", initButtonsPanel);
 </script>
 
 <script>
 	// 向下滚动超过该像素数后才显示按钮
 	const SCROLL_THRESHOLD = 300;
-	// 获取按钮元素（页面不存在该按钮时跳过，避免报错）
-	const scrollBtn = document.getElementById("to-top-button") as HTMLButtonElement | null;
+	// 保存上一次注册的 window 级滚动监听的清理函数，避免多次导航后监听不断叠加
+	let cleanupToTop: (() => void) | undefined;
 
-	if (scrollBtn) {
+	// 初始化「回到顶部」按钮
+	function initToTop() {
+		// 先把上一次注册的监听清掉（首次执行时为空操作）
+		cleanupToTop?.();
+		cleanupToTop = undefined;
+
+		// 获取按钮元素（页面不存在该按钮时跳过，避免报错）
+		const scrollBtn = document.getElementById("to-top-button") as HTMLButtonElement | null;
+		if (!scrollBtn) return;
+
 		// 根据当前滚动位置切换显示状态
 		// 原先用 IntersectionObserver 监听 <header>，但 header 在移动端是 fixed 的，永远处于可视区，导致按钮从不出现
 		const updateScrollBtn = () => {
@@ -292,12 +302,24 @@ const { headings } = await render(series);
 		};
 
 		// 点击后平滑滚回顶部
-		scrollBtn.addEventListener("click", () => {
+		const scrollToTop = () => {
 			window.scrollTo({ behavior: "smooth", top: 0 });
-		});
+		};
+		scrollBtn.addEventListener("click", scrollToTop);
 
 		// 监听滚动（passive 不阻塞滚动），并先同步一次初始状态
 		window.addEventListener("scroll", updateScrollBtn, { passive: true });
 		updateScrollBtn();
+
+		// 记录清理函数：window 上的监听不会随 DOM 替换自动消失，必须手动移除
+		cleanupToTop = () => {
+			window.removeEventListener("scroll", updateScrollBtn);
+			scrollBtn.removeEventListener("click", scrollToTop);
+		};
 	}
+
+	// 首次加载时立即初始化
+	initToTop();
+	// 客户端导航后 DOM 被替换，需要重新初始化
+	document.addEventListener("astro:page-load", initToTop);
 </script>

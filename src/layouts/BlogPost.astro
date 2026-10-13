@@ -143,55 +143,66 @@ const { headings } = await render(post);
 
 <!-- Copy code button -->
 <script>
-	// Wait for the content to fully load
-	document.addEventListener("DOMContentLoaded", () => {
-		// Find all pre blocks
+	// 为正文中的每个代码块注入一个「复制」按钮
+	function initCopyCodeButtons() {
+		// 找出页面上所有代码块
 		document.querySelectorAll("pre").forEach((pre) => {
-			// Check if the button already exists
-			if (!pre.querySelector(".copy-code")) {
-				// Create the button
-				const copyButton = document.createElement("button");
-				copyButton.className =
-				"absolute flex items-center justify-center bg-bgColor h-6 font-medium overflow-hidden rounded-md text-light hover:text-accent-two font-sans text-sm font-medium top-2 right-2";
+			// 已经注入过就直接跳过：初始化会在首次加载时执行两次，靠这个判断避免叠加出多个按钮
+			if (pre.querySelector(".copy-code")) return;
 
-				// Create the span element that will hold the button text
-				const buttonText = document.createElement("span");
-				buttonText.innerText = "复制"; // 初始按钮文案
-				buttonText.className = "flex items-center block w-full h-full px-2 bg-[var(--code-title-bg)]"; // Set the span to take up full width with background color
+			// 创建按钮元素
+			const copyButton = document.createElement("button");
+			// copy-code 既是样式锚点，也是上面「是否已注入」判断的依据
+			copyButton.className =
+				"copy-code absolute flex items-center justify-center bg-bgColor h-6 font-medium overflow-hidden rounded-md text-light hover:text-accent-two font-sans text-sm font-medium top-2 right-2";
 
-				copyButton.appendChild(buttonText); // Append span to the button
+			// 按钮文案由单独的 span 承载，便于控制背景色与内边距
+			const buttonText = document.createElement("span");
+			buttonText.innerText = "复制"; // 初始按钮文案
+			buttonText.className = "flex items-center block w-full h-full px-2 bg-[var(--code-title-bg)]"; // 撑满按钮并带背景色
 
-				// Add the button inside pre
-				pre.appendChild(copyButton);
+			copyButton.appendChild(buttonText); // 把文案 span 挂到按钮内
 
-				// Event handler for copying text
-				copyButton.addEventListener("click", async () => {
-					const code = pre.querySelector("code")?.textContent;
-					if (code) {
-						await navigator.clipboard.writeText(code);
-						buttonText.innerText = "已复制"; // 复制成功后切换文案
+			// 把按钮挂进代码块
+			pre.appendChild(copyButton);
 
-						// 1.5 秒后把文案恢复为「复制」
-						setTimeout(() => {
-							buttonText.innerText = "复制";
-						}, 1500);
-					}
-				});
-			}
+			// 点击时把代码文本写入系统剪贴板
+			copyButton.addEventListener("click", async () => {
+				const code = pre.querySelector("code")?.textContent;
+				if (code) {
+					await navigator.clipboard.writeText(code);
+					buttonText.innerText = "已复制"; // 复制成功后切换文案
+
+					// 1.5 秒后把文案恢复为「复制」
+					setTimeout(() => {
+						buttonText.innerText = "复制";
+					}, 1500);
+				}
+			});
 		});
-	});
+	}
+
+	// 首次加载时立即初始化
+	initCopyCodeButtons();
+	// 客户端导航后 body 会被整体替换，需要重新注入
+	document.addEventListener("astro:page-load", initCopyCodeButtons);
 </script>
 
 <script>
+	// 面板展开 / 收起的动画时长（毫秒）
 	const ANIMATION_DURATION = 300;
-	// 获取面板与各切换/关闭按钮元素
-	const togglePanelBtn = document.getElementById("toggle-panel");
-	const closePanelBtn = document.getElementById("close-panel");
-	const seriesPanel = document.getElementById("series-panel");
-	const togglePanelMobileBtn = document.getElementById("toggle-panel-mobile");
 
-	// 文章未加入任何系列时页面上不存在该面板，直接跳过初始化（否则会往控制台抛错）
-	if (seriesPanel) {
+	// 初始化系列面板的交互
+	function initSeriesPanel() {
+		// 获取面板与各切换/关闭按钮元素
+		const togglePanelBtn = document.getElementById("toggle-panel");
+		const closePanelBtn = document.getElementById("close-panel");
+		const seriesPanel = document.getElementById("series-panel");
+		const togglePanelMobileBtn = document.getElementById("toggle-panel-mobile");
+
+		// 文章未加入任何系列时页面上不存在该面板，直接跳过初始化（否则会往控制台抛错）
+		if (!seriesPanel) return;
+
 		// 判断面板当前是否可见
 		const isPanelVisible = () => {
 			const isScreenLg = window.matchMedia("(min-width: 1024px)").matches; // 大屏
@@ -228,32 +239,37 @@ const { headings } = await render(post);
 			}
 		};
 
-		// 绑定桌面端切换按钮
-		if (togglePanelBtn) {
-			togglePanelBtn.addEventListener("click", togglePanel);
-		}
+		// 绑定按钮的小工具：用 dataset 做幂等标记，避免重复绑定导致一次点击切换两下
+		const bind = (el: HTMLElement | null, handler: () => void) => {
+			if (!el || el.dataset.bound === "true") return;
+			el.dataset.bound = "true";
+			el.addEventListener("click", handler);
+		};
 
-		// 绑定移动端切换按钮
-		if (togglePanelMobileBtn) {
-			togglePanelMobileBtn.addEventListener("click", togglePanel);
-		}
-
-		// 绑定面板内的关闭按钮
-		if (closePanelBtn) {
-			closePanelBtn.addEventListener("click", hidePanel);
-		}
+		// 依次绑定：桌面端切换按钮、移动端切换按钮、面板内的关闭按钮
+		bind(togglePanelBtn, togglePanel);
+		bind(togglePanelMobileBtn, togglePanel);
+		bind(closePanelBtn, hidePanel);
 	}
+
+	// 首次加载时立即初始化
+	initSeriesPanel();
+	// 客户端导航后 DOM 被替换，需要重新初始化
+	document.addEventListener("astro:page-load", initSeriesPanel);
 </script>
 
 <script>
-	// 获取目录面板与各切换/关闭按钮元素
-	const toggleTocBtn = document.getElementById('toggle-toc');
-	const closeTocBtn = document.getElementById('close-toc');
-	const tocPanel = document.getElementById('toc-panel');
-	const toggleTocMobileBtn = document.getElementById("toggle-toc-mobile");
+	// 初始化目录（TOC）面板的交互
+	function initTocPanel() {
+		// 获取目录面板与各切换/关闭按钮元素
+		const toggleTocBtn = document.getElementById('toggle-toc');
+		const closeTocBtn = document.getElementById('close-toc');
+		const tocPanel = document.getElementById('toc-panel');
+		const toggleTocMobileBtn = document.getElementById("toggle-toc-mobile");
 
-	// 文章没有标题层级时页面上不存在目录面板，直接跳过初始化（否则会往控制台抛错）
-	if (tocPanel) {
+		// 文章没有标题层级时页面上不存在目录面板，直接跳过初始化（否则会往控制台抛错）
+		if (!tocPanel) return;
+
 		// 判断目录当前是否可见
 		const isTocVisible = () => {
 			const isScreenMd = window.matchMedia("(min-width: 768px)").matches;
@@ -284,26 +300,28 @@ const { headings } = await render(post);
 			}
 		};
 
-		// 绑定桌面端切换按钮
-		if (toggleTocBtn) {
-			toggleTocBtn.addEventListener("click", toggleToc);
-		}
+		// 绑定按钮的小工具：用 dataset 做幂等标记，避免重复绑定导致一次点击切换两下
+		const bind = (el: HTMLElement | null, handler: () => void) => {
+			if (!el || el.dataset.bound === "true") return;
+			el.dataset.bound = "true";
+			el.addEventListener("click", handler);
+		};
 
-		// 绑定移动端切换按钮
-		if (toggleTocMobileBtn) {
-			toggleTocMobileBtn.addEventListener("click", toggleToc);
-		}
-
-		// 绑定面板内的关闭按钮
-		if (closeTocBtn) {
-			closeTocBtn.addEventListener('click', hideToc);
-		}
+		// 依次绑定：桌面端切换按钮、移动端切换按钮、面板内的关闭按钮
+		bind(toggleTocBtn, toggleToc);
+		bind(toggleTocMobileBtn, toggleToc);
+		bind(closeTocBtn, hideToc);
 	}
+
+	// 首次加载时立即初始化
+	initTocPanel();
+	// 客户端导航后 DOM 被替换，需要重新初始化
+	document.addEventListener("astro:page-load", initTocPanel);
 </script>
 
 <script>
-	// Wait for the content to fully load
-	document.addEventListener("DOMContentLoaded", () => {
+	// 初始化头部右上角的按钮面板（搜索 + 主题切换）
+	function initButtonsPanel() {
 		const buttonsPanel = document.getElementById("buttons-panel");
 		
 		if (buttonsPanel) {
@@ -312,17 +330,31 @@ const { headings } = await render(post);
 		} else {
 			console.error("Element with ID 'buttons-panel' not found.");
 		}
-	});
+	}
+
+	// 首次加载时立即初始化
+	initButtonsPanel();
+	// 客户端导航后 DOM 被替换，需要重新初始化
+	document.addEventListener("astro:page-load", initButtonsPanel);
 </script>
 
 <!-- 回到顶部按钮的显示逻辑 -->
 <script>
 	// 向下滚动超过该像素数后才显示按钮
 	const SCROLL_THRESHOLD = 300;
-	// 获取按钮元素（页面不存在该按钮时跳过，避免报错）
-	const scrollBtn = document.getElementById("to-top-button") as HTMLButtonElement | null;
+	// 保存上一次注册的 window 级滚动监听的清理函数，避免多次导航后监听不断叠加
+	let cleanupToTop: (() => void) | undefined;
 
-	if (scrollBtn) {
+	// 初始化「回到顶部」按钮
+	function initToTop() {
+		// 先把上一次注册的监听清掉（首次执行时为空操作）
+		cleanupToTop?.();
+		cleanupToTop = undefined;
+
+		// 获取按钮元素（页面不存在该按钮时跳过，避免报错）
+		const scrollBtn = document.getElementById("to-top-button") as HTMLButtonElement | null;
+		if (!scrollBtn) return;
+
 		// 根据当前滚动位置切换显示状态
 		// 原先用 IntersectionObserver 监听 <header>，但 header 在移动端是 fixed 的，永远处于可视区，导致按钮从不出现
 		const updateScrollBtn = () => {
@@ -330,14 +362,26 @@ const { headings } = await render(post);
 		};
 
 		// 点击后平滑滚回顶部
-		scrollBtn.addEventListener("click", () => {
+		const scrollToTop = () => {
 			window.scrollTo({ behavior: "smooth", top: 0 });
-		});
+		};
+		scrollBtn.addEventListener("click", scrollToTop);
 
 		// 监听滚动（passive 不阻塞滚动），并先同步一次初始状态
 		window.addEventListener("scroll", updateScrollBtn, { passive: true });
 		updateScrollBtn();
+
+		// 记录清理函数：window 上的监听不会随 DOM 替换自动消失，必须手动移除
+		cleanupToTop = () => {
+			window.removeEventListener("scroll", updateScrollBtn);
+			scrollBtn.removeEventListener("click", scrollToTop);
+		};
 	}
+
+	// 首次加载时立即初始化
+	initToTop();
+	// 客户端导航后 DOM 被替换，需要重新初始化
+	document.addEventListener("astro:page-load", initToTop);
 </script>
 
 <!-- REQUIRES IMPROVEMENT!!! -->

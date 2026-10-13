@@ -226,57 +226,65 @@ import { Icon } from "astro-icon/components";
 </div>
 
 <script>
-	document.addEventListener("DOMContentLoaded", () => {
+	// 初始化移动端抽屉菜单（汉堡按钮展开 / 收起全屏导航）
+	function initMobileDrawer() {
+		// 获取按钮、两个图标与抽屉容器
 		const toggleNavMenuMobileButton = document.getElementById("toggle-nav-menu-mobile");
 		const openMenuIcon = document.getElementById("open-nav-menu-icon");
 		const closeMenuIcon = document.getElementById("close-nav-menu-icon");
 		const drawer = document.getElementById("drawer");
 
-		// Проверяем существование элементов
-		if (!toggleNavMenuMobileButton || !openMenuIcon || !closeMenuIcon || !drawer) {
-			console.error("One or more required elements are missing in the DOM.");
-			return;
-		}
+		// 任一必需元素缺失就跳过本次初始化
+		if (!toggleNavMenuMobileButton || !openMenuIcon || !closeMenuIcon || !drawer) return;
 
+		// 抽屉内容层，负责位移与透明度动画
 		const drawerBody = document.getElementById("drawer-body");
-		if (!drawerBody) {
-			console.error("Drawer body element is missing in the DOM.");
-			return;
-		}
+		if (!drawerBody) return;
 
+		// 幂等保护：初始化在首次加载时会执行两次，避免重复绑定导致一次点击开了又立刻关
+		if (toggleNavMenuMobileButton.dataset.bound === "true") return;
+		toggleNavMenuMobileButton.dataset.bound = "true";
+
+		// 点击汉堡按钮切换抽屉显隐
 		toggleNavMenuMobileButton.addEventListener("click", () => {
+			// 从 aria-expanded 读取当前是否已展开
 			const isOpen = toggleNavMenuMobileButton.getAttribute("aria-expanded") === "true";
 
 			if (isOpen) {
-				// Закрываем меню
+				// 关闭菜单：内容层向上滑出
 				drawerBody.classList.add("opacity-0", "-translate-y-full");
 				drawerBody.classList.remove("translate-y-0");
 
-				// Убираем после анимации
+				// 动画结束后再把整个抽屉隐藏
 				setTimeout(() => {
 					drawer.classList.add("hidden");
 				}, 300);
 
-				// Меняем иконки
+				// 切换图标：显示汉堡、隐藏关闭
 				openMenuIcon.classList.add("scale-100", "opacity-100");
 				closeMenuIcon.classList.add("scale-0", "opacity-0");
 				closeMenuIcon.classList.remove("scale-100", "opacity-100");
 			} else {
-				// Показываем меню
+				// 打开菜单：先显示抽屉，内容层再滑入
 				drawer.classList.remove("hidden");
 				drawerBody.classList.add("translate-y-0");
 				drawerBody.classList.remove("opacity-0", "-translate-y-full");
 
-				// Меняем иконки
+				// 切换图标：隐藏汉堡、显示关闭
 				openMenuIcon.classList.add("scale-0", "opacity-0");
 				closeMenuIcon.classList.add("scale-100", "opacity-100");
 				openMenuIcon.classList.remove("scale-100", "opacity-100");
 			}
 
-			// Обновляем состояние кнопки
+			// 更新按钮的无障碍展开状态
 			toggleNavMenuMobileButton.setAttribute("aria-expanded", (!isOpen).toString());
 		});
-	});
+	}
+
+	// 首次加载时立即初始化
+	initMobileDrawer();
+	// 客户端导航后 DOM 被替换，需要重新初始化
+	document.addEventListener("astro:page-load", initMobileDrawer);
 </script>
 
 

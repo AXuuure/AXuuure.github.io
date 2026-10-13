@@ -1,0 +1,300 @@
+---
+// 全局悬浮音乐播放器：右下角悬浮小球 + 可展开面板，跨页面导航时音乐不中断
+//
+// 为什么不能只用 transition:persist（已实测结论）：
+//   Astro 客户端的导航流程是 swapBodyElement：先 oldElement.replaceWith(newElement) 整体换掉 <body>，
+//   再按 persist 标记把旧节点重新挂回去。这个「先卸载、后挂回」的中间态会让 iframe 的浏览上下文被丢弃，
+//   重新挂回时浏览器按 src 重新加载播放器，音乐就会从头再播一遍。
+//   实测证据：performance 里的 music.163.com 资源条目在导航后由 1 条变成 2 条，
+//   而 document 导航条目始终只有 1 条 —— 说明确实是 SPA 导航（没有整页刷新），但 iframe 被重新创建了。
+//
+// 采用的方案：把播放器挂到 <html>（document.documentElement）之下，而不是 <body> 里。
+//   Astro 的过渡逻辑只做三件事：改 <html> 的 data-* 属性、替换 <head> 的子节点、替换 <body>，
+//   从不触碰 <html> 的其它子节点。所以播放器一旦挂上去就再也不会被卸载，
+//   iframe 不会重载，音乐真正跨页连续。
+//   悬浮由 position:fixed 实现，定位只跟视口有关、与 DOM 父级无关，因此挂在 <html> 下依然固定在视口右下角。
+//
+// SSR 阶段先用一个 <template> 承载播放器结构：
+//   template 的内容是惰性的文档片段，里面的 iframe 不会发起任何请求；
+//   客户端再用 JS 克隆一次真正挂载，保证全站只有一份播放器，导航时也不会产生多余的播放器请求。
+//
+// 小球可拖拽（轻量版）：
+//   拖拽只在悬浮外壳上叠加一层 transform 偏移，fixed bottom/right 仍作为基准锚点，
+//   所以默认位置与 md: 响应式断点的行为零改动；偏移只存在内存里，刷新后自动回到默认位置。
+//   展开面板用绝对定位，夹进视口时只平移面板本身，不会把小球的落点带偏。
+import { Icon } from "astro-icon/components";
+---
+
+<!-- 播放器结构载体：template 内容不会被渲染，其中的 iframe 也不会加载，仅作克隆源 -->
+<template id="music-player-template">
+	<!--
+		悬浮外壳：尺寸与小球的 48px 完全一致，只作为「小球的定位框」。
+		- fixed 定位 => 页面滚动时始终停留在视口右下角
+		- z-50      => 与主题其它浮动按钮同层级，位于正文之上
+		- 移动端 bottom-36 是为了避开右下角的系列 / 目录浮动按钮（它们占 bottom-4 与 bottom-20）
+		- 桌面端 bottom-28 是为了叠在「回到顶部」按钮上方，并与其右侧对齐
+		这里刻意不写成 flex 容器：面板改成绝对定位后，显隐与横向位移都不会牵动小球的位置。
+	-->
+	<div
+		id="global-music-player"
+		class="fixed bottom-36 right-4 z-50 h-12 w-12 select-none md:bottom-28 md:right-8"
+	>
+		<!--
+			展开面板：默认 hidden，点击小球后展开。
+			- absolute bottom-full right-0 => 挂在小球正上方，右边缘与小球对齐、向左展开
+			- w-max  => 按内容撑开宽度。不能用 w-fit：绝对定位元素的 fit-content 是相对定位父级（只有 60px 的小球外壳）
+			           计算的，会被压成很窄的一条；max-content 才是按内容本身取宽。
+			- mb-2 => 与小球之间留出原来 gap-2 的间距
+			这里刻意不给 iframe 加 loading="lazy"：懒加载依赖「进入视口」判定，
+			而面板初始是隐藏的，会让首次展开时播放器还在加载，体验很差。
+		-->
+		<div
+			id="music-panel"
+			class="hidden absolute bottom-full right-0 mb-2 w-max max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-special-lighter bg-bgColor p-3 shadow-[0px_10px_25px_rgba(0,0,0,0.15)]"
+		>
+			<!-- 面板头部：左侧显示曲目，右侧提供一个收起按钮 -->
+			<div class="mb-2 flex items-center justify-between gap-4">
+				<!-- 曲目名称（纯展示，不与 iframe 内部状态联动） -->
+				<span class="text-sm font-medium text-accent-base">在听 · Carrot Juice - Oneul</span>
+				<!-- 收起按钮：等价于点小球，方便不用移动鼠标就能关掉面板 -->
+				<button
+					id="music-collapse"
+					type="button"
+					aria-label="收起播放器"
+					class="text-lighter transition-colors hover:text-accent-two"
+				>
+					<Icon class="size-4" name="hugeicons:cancel-01" />
+				</button>
+			</div>
+			<!--
+				网易云官方单曲外链播放器：
+				- type=2         表示单曲（0=歌单 1=专辑 2=单曲 3=电台节目 4=电台）
+				- id=2082378717  单曲 ID（Carrot Juice - Oneul，免费曲目，未登录访客也能完整播放）
+				- auto=0         关闭自动播放：带声音的自动播放会被浏览器拦截，显式关掉行为更可预期
+				- height=66      播放器内容高度，外层 iframe 高度需为其 +20，即 86
+				- max-width:100% 让它在超窄屏上自动收缩，避免横向溢出
+			-->
+			<iframe
+				title="网易云音乐播放器：Carrot Juice - Oneul"
+				width="330"
+				height="86"
+				style="border: 0; max-width: 100%;"
+				src="//music.163.com/outchain/player?type=2&id=2082378717&auto=0&height=66"></iframe>
+		</div>
+
+		<!--
+			悬浮小球：整个功能的入口，既能点击切换面板，也是拖拽手柄。
+			- touch-none       => 移动端按住拖动时不触发页面滚动（否则会被 pointercancel 打断）
+			- cursor-grab      => 桌面端提示「可以拖」；active 态换成抓取中的手势
+			- select-none 已在外壳上，避免拖动时选中文字
+		-->
+		<button
+			id="music-toggle"
+			type="button"
+			aria-expanded="false"
+			aria-controls="music-panel"
+			aria-label="展开音乐播放器"
+			class="flex h-12 w-12 cursor-grab touch-none items-center justify-center rounded-full border border-special-lighter bg-bgColor text-accent-base shadow-[0px_10px_25px_rgba(0,0,0,0.15)] transition-colors hover:text-accent-two active:cursor-grabbing"
+		>
+			<!-- 音符图标 -->
+			<Icon class="size-6" name="hugeicons:music-note-01" />
+		</button>
+	</div>
+</template>
+
+<script>
+	// 挂载播放器：把 <template> 里的结构克隆一份挂到 <html> 下，使其不参与 Astro 的 <body> 替换
+	function mountMusicPlayer() {
+		// 已经挂载过就跳过：初始化在首次加载时会执行两次，这里靠 DOM 存在性做幂等保护，
+		// 同时也保证导航后不会重复挂出第二个播放器
+		if (document.getElementById("global-music-player")) return;
+
+		// 取出 SSR 渲染的模板载体（template 内容惰性，其中的 iframe 尚未发起请求）
+		const template = document.getElementById("music-player-template") as HTMLTemplateElement | null;
+		if (!template) return;
+
+		// 克隆模板内容。克隆一份而不是移动，是为了让模板始终留在 <body> 里，
+		// 下一轮导航时 SSR 又会渲染出同样的模板，行为保持一致
+		const clone = template.content.cloneNode(true) as DocumentFragment;
+
+		// 挂到 <html> 之下：该位置不在 Astro 的替换范围内，
+		// 导航时播放器不会被卸载，iframe 不会重载，音乐因此不会中断
+		document.documentElement.appendChild(clone);
+
+		// 取刚挂上去的关键节点：外壳、小球、收起按钮、面板
+		const wrapper = document.getElementById("global-music-player") as HTMLDivElement | null;
+		const toggleBtn = document.getElementById("music-toggle");
+		const collapseBtn = document.getElementById("music-collapse");
+		const panel = document.getElementById("music-panel") as HTMLDivElement | null;
+		// 节点缺失时直接返回（理论上不会发生，防御一下）
+		if (!wrapper || !toggleBtn || !panel) return;
+
+		// ===== 常量 =====
+		// 小球与视口边缘之间至少保留的间距（px）
+		const EDGE_MARGIN = 8;
+		// 面板与小球之间的间距（px），需与 mb-2 / mt-2 的 0.5rem 保持一致
+		const PANEL_GAP = 10;
+		// 位移超过这个阈值才算拖拽，否则视为一次点击 —— 避免拖完误触展开面板
+		const DRAG_THRESHOLD = 5;
+
+		// ===== 拖拽状态 =====
+		// 相对基准锚点（fixed bottom/right）的偏移量；只活在内存里，刷新即回到默认位置
+		let offsetX = 0;
+		let offsetY = 0;
+		// 一次拖拽会话的临时状态
+		let dragStartX = 0; // 按下时的指针横坐标
+		let dragStartY = 0; // 按下时的指针纵坐标
+		let dragBaseX = 0; // 按下瞬间的偏移量，作为本次拖拽的基准
+		let dragBaseY = 0;
+		let dragging = false; // 是否已越过阈值、进入真正的拖拽
+		let suppressClick = false; // 拖拽收尾时要吞掉紧随其后的那次 click
+
+		// 应用偏移：用 transform 而不是改 left/top，这样基准锚点和响应式断点行为都不受影响
+		const applyOffset = () => {
+			wrapper.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+		};
+
+		// 把小球夹回视口内：偏移是纯平移，所以「测得溢出多少」就等于「该反向补多少」
+		const clampOffset = () => {
+			const r = wrapper.getBoundingClientRect();
+			let fixX = 0; // 横向修正量
+			let fixY = 0; // 纵向修正量
+			// 先处理左边/上边，再处理右边/下边；小球只有 48px，不会出现两侧同时溢出的情况
+			if (r.left < EDGE_MARGIN) fixX = EDGE_MARGIN - r.left;
+			else if (r.right > window.innerWidth - EDGE_MARGIN) fixX = window.innerWidth - EDGE_MARGIN - r.right;
+			if (r.top < EDGE_MARGIN) fixY = EDGE_MARGIN - r.top;
+			else if (r.bottom > window.innerHeight - EDGE_MARGIN) fixY = window.innerHeight - EDGE_MARGIN - r.bottom;
+			// 只有真的越界才改写偏移，避免无谓地动小球
+			if (fixX || fixY) {
+				offsetX += fixX;
+				offsetY += fixY;
+				applyOffset();
+			}
+		};
+
+		// 面板当前是否挂在小球下方（默认在上方）
+		let panelBelow = false;
+
+		// 按 panelBelow 切换面板的挂载朝向：
+		// 上方 => bottom-full + mb-2；下方 => top-full + mt-2
+		const applyPanelSide = () => {
+			panel.classList.toggle("bottom-full", !panelBelow);
+			panel.classList.toggle("mb-2", !panelBelow);
+			panel.classList.toggle("top-full", panelBelow);
+			panel.classList.toggle("mt-2", panelBelow);
+		};
+
+		// 把展开面板夹进视口：面板是绝对定位的，平移它不会牵动小球，所以小球不会被带偏
+		const clampPanel = () => {
+			// 先复位朝向与位移，取「未位移时」的真实位置（同一次任务内完成，不会闪一下）
+			panelBelow = false;
+			applyPanelSide();
+			panel.style.transform = "none";
+			const panelRect = panel.getBoundingClientRect();
+			const ballRect = wrapper.getBoundingClientRect();
+			// 小球上方 / 下方分别还剩多少可用高度
+			const spaceAbove = ballRect.top - EDGE_MARGIN - PANEL_GAP;
+			const spaceBelow = window.innerHeight - ballRect.bottom - EDGE_MARGIN - PANEL_GAP;
+			// 上方放不下、且下方更宽裕时，翻到小球下方展开。
+			// 判定只依赖当前几何位置，同一次输入必得同一结果，所以不会来回翻导致闪烁
+			if (panelRect.height > spaceAbove && spaceBelow > spaceAbove) {
+				panelBelow = true;
+				applyPanelSide();
+			}
+			// 横向：优先保证左边界（宽度已被 max-w 限制在 100vw-2rem 内，左对齐后右边界必然也在视口内）
+			const r = panel.getBoundingClientRect();
+			let shift = 0; // 需要横向平移的量
+			if (r.left < EDGE_MARGIN) shift = EDGE_MARGIN - r.left;
+			else if (r.right > window.innerWidth - EDGE_MARGIN) shift = window.innerWidth - EDGE_MARGIN - r.right;
+			panel.style.transform = shift ? `translateX(${shift}px)` : "none";
+		};
+
+		// ===== 面板开关 =====
+		// 统一收口开关逻辑：同时维护面板可见性与 aria 展开状态
+		const setOpen = (open: boolean) => {
+			// hidden 控制面板显隐（收起时只是 display:none，iframe 仍在，播放不中断）
+			panel.classList.toggle("hidden", !open);
+			// 同步无障碍状态，读屏可正确播报
+			toggleBtn.setAttribute("aria-expanded", String(open));
+			// 展开时立刻夹一次：否则小球停在屏幕左侧时，面板会往视口外溢出
+			if (open) clampPanel();
+		};
+
+		// ===== 拖拽交互（Pointer Events：鼠标 / 触摸 / 触控笔同一套逻辑） =====
+
+		// 按下：记录起点并捕获指针，后续 move / up 都会被锁定到这个小球上（拖到视口外也不丢事件）
+		toggleBtn.addEventListener("pointerdown", (e: PointerEvent) => {
+			// 只响应主按键：鼠标左键、触摸、笔尖；右键与中键直接忽略
+			if (e.pointerType === "mouse" && e.button !== 0) return;
+			dragStartX = e.clientX;
+			dragStartY = e.clientY;
+			dragBaseX = offsetX;
+			dragBaseY = offsetY;
+			dragging = false;
+			toggleBtn.setPointerCapture(e.pointerId);
+			// 阻止拖动过程中选中文本
+			e.preventDefault();
+		});
+
+		// 移动：越过阈值后才真正移动小球，并实时夹住边界
+		toggleBtn.addEventListener("pointermove", (e: PointerEvent) => {
+			// 没有持有该指针（例如已被 up 释放）就忽略
+			if (!toggleBtn.hasPointerCapture(e.pointerId)) return;
+			const dx = e.clientX - dragStartX; // 相对按下点的横向位移
+			const dy = e.clientY - dragStartY; // 相对按下点的纵向位移
+			// 尚未越过阈值：保持不动，把判定权留给 pointerup（这样轻点仍是「点击」）
+			if (!dragging && Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+			dragging = true;
+			offsetX = dragBaseX + dx;
+			offsetY = dragBaseY + dy;
+			applyOffset();
+			clampOffset();
+			// 面板若开着，跟着小球重新夹一次，保证它始终完整可见
+			if (!panel.classList.contains("hidden")) clampPanel();
+		});
+
+		// 结束拖拽（松开或系统取消，例如手势被中断）
+		const endDrag = (e: PointerEvent) => {
+			// 指针捕获在 pointerup 后会被浏览器自动释放，这里补一次显式释放更稳妥
+			if (toggleBtn.hasPointerCapture(e.pointerId)) toggleBtn.releasePointerCapture(e.pointerId);
+			if (dragging) {
+				// 标记吞掉紧随其后的 click：拖拽收尾不该被当成「点击展开」
+				suppressClick = true;
+				// 兜底：万一这次没派发 click，标记也自行失效，不会影响下一次真正的点击
+				setTimeout(() => {
+					suppressClick = false;
+				}, 0);
+				dragging = false;
+			}
+		};
+		toggleBtn.addEventListener("pointerup", endDrag);
+		toggleBtn.addEventListener("pointercancel", endDrag);
+
+		// 点击小球：若是拖拽收尾的那次 click 就吞掉，否则切换面板。
+		// 保留 click 而不是直接在 pointerup 里切换，是为了键盘（Enter / Space）也能操作
+		toggleBtn.addEventListener("click", (e: MouseEvent) => {
+			if (suppressClick) {
+				suppressClick = false;
+				// 拦住这次点击，避免拖完又顺手把面板打开
+				e.preventDefault();
+				return;
+			}
+			setOpen(panel.classList.contains("hidden"));
+		});
+
+		// 点击面板内收起按钮：直接收起
+		collapseBtn?.addEventListener("click", () => setOpen(false));
+
+		// 窗口尺寸变化后重新夹一遍：
+		// 轻量版没有复位入口，如果小球被挤出视口，用户就再也点不到它了
+		window.addEventListener("resize", () => {
+			clampOffset();
+			if (!panel.classList.contains("hidden")) clampPanel();
+		});
+	}
+
+	// 首次加载时立即挂载
+	mountMusicPlayer();
+	// astro:page-load 在首屏与每次客户端导航后都会触发；上面的幂等保护会让导航后直接返回
+	document.addEventListener("astro:page-load", mountMusicPlayer);
+</script>

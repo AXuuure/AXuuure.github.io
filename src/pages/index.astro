@@ -59,9 +59,24 @@ const latestNotes = allNotes.sort(collectionDateSort).slice(0, MAX_NOTES);
 
 	<!-- Posts Section -->
 	<section aria-label="博客文章列表" class="'mt-[-100vh] pt-[100vh]'">
-		<h2 class="title mb-6 text-xl text-accent-two">
-			<a href="/posts/">博客</a>
-		</h2>
+		<!--
+			区块标题行：左侧仍是可点击的标题，右侧补一个显式的「查看全部」出口。
+			mb-6 从 h2 挪到这一层，保证与下方列表的间距与改动前完全一致。
+		-->
+		<div class="mb-6 flex items-center justify-between gap-4">
+			<!-- 标题本身就是链接，保留原有跳转行为不变 -->
+			<h2 class="title text-xl text-accent-two">
+				<a href="/posts/">博客</a>
+			</h2>
+			<!-- 「查看全部」入口：样式复用列表页里的「查看全部 →」，保持全站口径一致 -->
+			<a
+				aria-label="查看全部博客"
+				class="font-medium text-accent sm:hover:text-accent-two"
+				href="/posts/"
+			>
+				查看全部 →
+			</a>
+		</div>
 		<ul class="space-y-4 md:space-y-2" role="list">
 			{
 				allPostsByDate.map((p) => (
@@ -77,9 +92,21 @@ const latestNotes = allNotes.sort(collectionDateSort).slice(0, MAX_NOTES);
 	{
 		latestNotes.length > 0 && (
 			<section class="mt-12">
-				<h2 class="title mb-6 text-accent-two">
-					<a href="/notes/">笔记</a>
-				</h2>
+				<!-- 区块标题行：与博客区块保持同一结构，右侧给出去往笔记列表页的显式出口 -->
+				<div class="mb-6 flex items-center justify-between gap-4">
+					<!-- 标题本身就是链接，保留原有跳转行为不变 -->
+					<h2 class="title text-accent-two">
+						<a href="/notes/">笔记</a>
+					</h2>
+					<!-- 「查看全部」入口：样式复用列表页里的「查看全部 →」，保持全站口径一致 -->
+					<a
+						aria-label="查看全部笔记"
+						class="font-medium text-accent sm:hover:text-accent-two"
+						href="/notes/"
+					>
+						查看全部 →
+					</a>
+				</div>
 				<div class="grid grid-cols-1 gap-8 sm:grid-cols-2">
 					{
 						latestNotes.map((note) => (

@@ -1,0 +1,70 @@
+---
+// /posts/<题材>/ ：单个题材页，列出该题材下的全部文章（按发布日期倒序）。
+// v2 说明：已删除 v1 的「体裁页」分支与「按体裁分两组」逻辑，题材内只有一个列表。
+// 题材 slug 由 taxonomy.ts 断言保证合法，非法目录会在构建期抛错。
+import PostPreview from "@/components/blog/PostPreview.astro";
+import PageLayout from "@/layouts/Base.astro";
+import { getAllPosts } from "@/data/post";
+import { collectionDateSort } from "@/utils/date";
+import { TOPICS, getTopicDescription, getTopicLabel, parseTopic } from "@/data/taxonomy";
+import type { GetStaticPaths } from "astro";
+
+export const getStaticPaths = (async () => {
+	// 每个题材生成一个页面（共 5 个）
+	return TOPICS.map((topic) => ({
+		params: { topic: topic.slug },
+		// 断言已保证 slug 合法，这里显式收窄成 string 便于 props 解构
+		props: { slug: topic.slug as string },
+	}));
+}) satisfies GetStaticPaths;
+
+interface Props {
+	// 当前题材 slug
+	slug: string;
+}
+
+const { slug } = Astro.props;
+
+// 取全部已发布文章（生产构建会自动剔除草稿）
+const allPosts = await getAllPosts();
+
+// 当前题材下的文章，按发布日期倒序
+const pagePosts = allPosts.filter((post) => parseTopic(post.id) === slug).sort(collectionDateSort);
+
+// 页面标题与界定文案，均取自 taxonomy.ts 的单一真相来源
+const title = getTopicLabel(slug);
+const topicDescription = getTopicDescription(slug);
+
+const meta = {
+	description: `${title}题材下的全部文章。${topicDescription}`,
+	title,
+};
+---
+
+<PageLayout meta={meta}>
+	<!-- 面包屑：博客 / 题材 / 当前题材 -->
+	<nav aria-label="面包屑" class="mb-4 flex flex-wrap items-center gap-x-1 text-sm text-lighter">
+		<a class="hover:text-accent-two" href="/posts/">博客</a>
+		<span aria-hidden="true">/</span>
+		<span>题材</span>
+		<span aria-hidden="true">/</span>
+		<span class="text-textColor">{title}</span>
+	</nav>
+
+	<h1 class="title mb-4">{title}</h1>
+
+	{topicDescription && <p class="prose mb-8 max-w-none text-light">{topicDescription}</p>}
+
+	<ul class="space-y-4">
+		{
+			pagePosts.map((post) => (
+				<li>
+					<PostPreview post={post} />
+				</li>
+			))
+		}
+	</ul>
+
+	<!-- 空题材兜底：该题材下没有文章时不报错、不产出空白页 -->
+	{pagePosts.length === 0 && <p class="text-lighter">这个题材下还没有文章。</p>}
+</PageLayout>

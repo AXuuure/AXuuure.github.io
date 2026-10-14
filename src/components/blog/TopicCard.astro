@@ -1,0 +1,29 @@
+---
+// 题材卡片：中枢页顶部的题材导航入口，展示题材中文名、篇数与一句界定
+interface Props {
+	// 题材 slug，用于拼接跳转链接
+	slug: string;
+	// 题材中文显示名
+	label: string;
+	// 题材界定文案
+	description: string;
+	// 该题材下的文章总数
+	total: number;
+}
+
+const { slug, label, description, total } = Astro.props;
+---
+
+<!-- 整卡可点击：卡片即题材页入口 -->
+<a
+	data-astro-prefetch
+	href={`/posts/${slug}/`}
+	class="group flex flex-col gap-1 rounded-lg border border-special-lighter bg-color-75 px-4 py-3 transition-colors hover:bg-color-100"
+>
+	<span class="flex items-baseline justify-between gap-2">
+		<span class="font-semibold text-accent-two group-hover:underline">{label}</span>
+		<span class="text-sm text-lighter">{total} 篇</span>
+	</span>
+	<!-- 界定句：说明该题材收什么内容，避免 library 这类宽题材变成杂物间 -->
+	<span class="line-clamp-2 text-sm text-lighter">{description}</span>
+</a>

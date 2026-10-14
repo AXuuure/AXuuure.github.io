@@ -2,30 +2,28 @@
 import type { CollectionEntry } from "astro:content";
 import Pagination from "@/components/Paginator.astro";
 import PostPreview from "@/components/blog/PostPreview.astro";
-import { getAllPosts, getUniqueTags, groupPostsByYear } from "@/data/post";
+import TopicCard from "@/components/blog/TopicCard.astro";
+import { getAllPosts, groupPostsByYear } from "@/data/post";
+import { TOPICS, parseTopic } from "@/data/taxonomy";
 import PageLayout from "@/layouts/Base.astro";
 import { collectionDateSort } from "@/utils/date";
 import type { GetStaticPaths, Page } from "astro";
 import { Icon } from "astro-icon/components";
-import Badge from "@/components/Badge.astro";
 
 export const getStaticPaths = (async ({ paginate }) => {
+	// 每页展示的文章数
 	const MAX_POSTS_PER_PAGE = 5;
-	const MAX_TAGS = 20;
 	const allPosts = await getAllPosts();
-	const uniqueTags = getUniqueTags(allPosts).slice(0, MAX_TAGS);
-	return paginate(allPosts.sort(collectionDateSort), {
-		pageSize: MAX_POSTS_PER_PAGE,
-		props: { uniqueTags },
-	});
+	// 标签云已从侧栏移除，不再需要预先计算 uniqueTags
+	return paginate(allPosts.sort(collectionDateSort), { pageSize: MAX_POSTS_PER_PAGE });
 }) satisfies GetStaticPaths;
 
 interface Props {
+	// 分页后的当前页数据
 	page: Page<CollectionEntry<"post">>;
-	uniqueTags: string[];
 }
 
-const { page, uniqueTags } = Astro.props;
+const { page } = Astro.props;
 
 const meta = {
 	description: "我的文章集合，以及我感兴趣的内容",
@@ -49,6 +47,16 @@ const paginationProps = {
 
 const groupedByYear = groupPostsByYear(page.data);
 const descYearKeys = Object.keys(groupedByYear).sort((a, b) => +b - +a);
+
+// 题材卡片数据：每个题材的篇数与界定句（仅第 1 页渲染）
+const allPosts = await getAllPosts();
+const topicStats = TOPICS.map((topic) => ({
+	slug: topic.slug,
+	label: topic.label,
+	description: topic.description,
+	// 属于该题材的文章数；v2 已删除按体裁的细分计数
+	total: allPosts.filter((post) => parseTopic(post.id) === topic.slug).length,
+}));
 ---
 
 <PageLayout meta={meta}>
@@ -59,65 +67,42 @@ const descYearKeys = Object.keys(groupedByYear).sort((a, b) => +b - +a);
 			<Icon aria-hidden="true" class="h-6 w-6" focusable="false" name="mdi:rss" />
 		</a>
 	</h1>
-	<div class="grid gap-y-8 sm:grid-cols-[1fr_auto] sm:gap-x-8">
-		<section aria-label="博客文章列表" class="grow">
-			{
-				descYearKeys.map((yearKey) => (
-					<>
-						<h4 class="title">{yearKey}</h4>
-						<ul class="mb-8 mt-4 space-y-8 text-start">
-							{groupedByYear[yearKey]?.map((p) => (
-								<li class="grid gap-2 sm:grid-cols-[auto_1fr] sm:[&_q]:col-start-2">
-									<PostPreview post={p} withDesc={true} />
-								</li>
-							))}
-						</ul>
-					</>
-				))
-			}
-		</section>
+
+	<!-- 题材导航：只在第 1 页出现，分页后的页面不重复 -->
+	{
+		page.currentPage === 1 && (
+			<section aria-label="题材导航" class="mb-10">
+				<h2 class="title mb-4">题材</h2>
+				<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+					{topicStats.map((topic) => (
+						<TopicCard
+							slug={topic.slug}
+							label={topic.label}
+							description={topic.description}
+							total={topic.total}
+						/>
+					))}
+				</div>
+			</section>
+		)
+	}
+
+	<section aria-label="博客文章列表">
 		{
-			!!uniqueTags.length && (
-				<aside class="md:min-w-[14rem] md:max-w-[14rem] md:basis-[14rem]">
-					<h4 class="title mb-4 flex gap-2">
-						标签
-						{/*
-						<Icon aria-hidden="true" class="mb-1 h-6 w-6" focusable="false" name="hugeicons:tags" />
-						*/}
-					</h4>
-					<ul class="flex flex-wrap gap-2">
-						{uniqueTags.map((tag) => (
-							<li>
-								<a aria-label={`查看标签 ${tag} 的所有文章`} href={`/tags/${tag}`}>
-									<Badge variant="muted" title={tag} />
-								</a>
+			descYearKeys.map((yearKey) => (
+				<>
+					<h4 class="title">{yearKey}</h4>
+					<ul class="mb-8 mt-4 space-y-8 text-start">
+						{groupedByYear[yearKey]?.map((p) => (
+							<li class="grid gap-2 sm:grid-cols-[auto_1fr] sm:[&_q]:col-start-2">
+								<PostPreview post={p} withDesc={true} />
 							</li>
 						))}
-
-						<span class="text-base ms-auto inline-flex items-center h-6 sm:text-end">
-							<a
-								aria-label="查看全部标签"
-								class="font-medium text-accent sm:hover:text-accent-two"
-								href="/tags/"
-							>
-								查看全部 →
-							</a>
-						</span>	
 					</ul>
-					{/*
-					<span class="mt-4 block sm:text-end">
-						<a
-							aria-label="View all blog categories"
-							class="font-medium text-accent sm:hover:text-accent-two"
-							href="/tags/"
-						>
-							View all →
-						</a>
-					</span>
-					*/}
-				</aside>
-			)
+				</>
+			))
 		}
-	</div>
+	</section>
+
 	<Pagination {...paginationProps} />
 </PageLayout>

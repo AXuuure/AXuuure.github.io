@@ -1,28 +1,29 @@
 ---
 import { getCollection } from "astro:content";
 
-import Note from "@/components/note/Note.astro";
+import Essay from "@/components/essay/Essay.astro";
 import PageLayout from "@/layouts/Base.astro";
 import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
 
-// If you're using an adaptor in SSR mode, getStaticPaths wont work -> https://docs.astro.build/en/guides/routing/#modifying-the-slug-example-for-ssr
+// 若在 SSR 模式下使用适配器，getStaticPaths 将失效 -> https://docs.astro.build/en/guides/routing/#modifying-the-slug-example-for-ssr
 export const getStaticPaths = (async () => {
-	const allNotes = await getCollection("note");
-	return allNotes.map((note) => ({
-		params: { slug: note.id },
-		props: { note },
+	// 取随笔集合的全部条目，逐条生成详情页
+	const allEssays = await getCollection("essay");
+	return allEssays.map((essay) => ({
+		params: { slug: essay.id },
+		props: { essay },
 	}));
 }) satisfies GetStaticPaths;
 
 export type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
-const { note } = Astro.props;
+const { essay } = Astro.props;
 
 const meta = {
 	description:
-		note.data.description ||
-		`发布于 ${note.data.publishDate.toLocaleDateString()} 的笔记`,
-	title: note.data.title,
+		essay.data.description ||
+		`发布于 ${essay.data.publishDate.toLocaleDateString()} 的随笔`,
+	title: essay.data.title,
 };
 ---
 
@@ -46,7 +47,7 @@ const meta = {
 			<div class="absolute top-[-85%] right-[-30%] w-[85%] h-full bg-gradient-to-b from-orange-300 via-indigo-300 to-transparent rounded-full opacity-60 dark:opacity-25"></div>
 		</div>
 	</div>
-	<Note as="h1" note={note} />
+	<Essay as="h1" essay={essay} />
 </PageLayout>
 
 <script>

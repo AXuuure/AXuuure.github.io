@@ -38,8 +38,9 @@ export const menuLinks: { path: string; title: string }[] = [
 		title: "博客",
 	},
 	{
-		path: "/notes/",
-		title: "笔记",
+		// 随笔板块：原「笔记」改名，路径与集合名同步
+		path: "/essays/",
+		title: "随笔",
 	},
 ];
 

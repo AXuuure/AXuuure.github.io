@@ -38,13 +38,17 @@ const post = defineCollection({
 		}),
 });
 
-const note = defineCollection({
-	loader: glob({ base: "./src/content/note", pattern: "**/*.{md,mdx}" }),
+// 随笔集合（原 note）：扁平存放、不挂题材，承载思考、记录、碎想
+const essay = defineCollection({
+	// 内容来源目录：src/content/essay/**
+	loader: glob({ base: "./src/content/essay", pattern: "**/*.{md,mdx}" }),
 	schema: baseSchema.extend({
+		// 描述可选：随笔常常只是短句，不强制写摘要
 		description: z.string().optional(),
+		// 发布时间：要求带时区的 ISO 8601 字符串
 		publishDate: z
 			.string()
-			.datetime({ offset: true }) // Ensures ISO 8601 format with offsets allowed (e.g. "2024-01-01T00:00:00Z" and "2024-01-01T00:00:00+02:00")
+			.datetime({ offset: true })
 			.transform((val) => new Date(val)),
 	}),
 });
@@ -61,5 +65,5 @@ const series = defineCollection({
 });
 // End
 
-// Series
-export const collections = { post, note, series };
+// 站点注册的全部内容集合：正式文章、随笔、专栏元数据
+export const collections = { post, essay, series };

@@ -2,7 +2,7 @@
 import { type CollectionEntry, getCollection } from "astro:content";
 import SocialList from "@/components/SocialList.astro";
 import PostPreview from "@/components/blog/PostPreview.astro";
-import Note from "@/components/note/Note.astro";
+import Essay from "@/components/essay/Essay.astro"; // 随笔预览卡片组件（原 Note.astro）
 import { getAllPosts } from "@/data/post";
 import PageLayout from "@/layouts/Base.astro";
 import { collectionDateSort } from "@/utils/date";
@@ -15,10 +15,10 @@ const allPostsByDate = allPosts
 	.sort(collectionDateSort)
 	.slice(0, MAX_POSTS) as CollectionEntry<"post">[];
 
-// Notes
-const MAX_NOTES = 2;
-const allNotes = await getCollection("note");
-const latestNotes = allNotes.sort(collectionDateSort).slice(0, MAX_NOTES);
+// Essays
+const MAX_ESSAYS = 2;
+const allEssays = await getCollection("essay");
+const latestEssays = allEssays.sort(collectionDateSort).slice(0, MAX_ESSAYS);
 ---
 
 <PageLayout meta={{ title: "首页" }}>
@@ -48,7 +48,8 @@ const latestNotes = allNotes.sort(collectionDateSort).slice(0, MAX_NOTES);
 					</span>
 				</a>
 
-				<a href="/notes/wake-up/" class="relative flex items-center justify-center h-8 px-4 rounded-lg shadow-lg bg-special-lighter hover:brightness-110 hover:bg-special-lightest">
+				{/* 「随手一读」入口：随笔详情路由已随集合改名同步到 /essays/ 下 */}
+				<a href="/essays/wake-up/" class="relative flex items-center justify-center h-8 px-4 rounded-lg shadow-lg bg-special-lighter hover:brightness-110 hover:bg-special-lightest">
 					<span class="bg-clip-text text-transparent font-semibold bg-gradient-to-r from-accent-one to-accent-two">
 						随手一读
 					</span>
@@ -88,30 +89,31 @@ const latestNotes = allNotes.sort(collectionDateSort).slice(0, MAX_NOTES);
 		</ul>
 	</section>
 
-	<!-- Notes Section -->
+	<!-- Essays Section -->
 	{
-		latestNotes.length > 0 && (
+		latestEssays.length > 0 && (
 			<section class="mt-12">
-				<!-- 区块标题行：与博客区块保持同一结构，右侧给出去往笔记列表页的显式出口 -->
+				<!-- 区块标题行：与博客区块保持同一结构，右侧给出去往随笔列表页的显式出口 -->
 				<div class="mb-6 flex items-center justify-between gap-4">
 					<!-- 标题本身就是链接，保留原有跳转行为不变 -->
 					<h2 class="title text-accent-two">
-						<a href="/notes/">笔记</a>
+						<a href="/essays/">随笔</a>
 					</h2>
 					<!-- 「查看全部」入口：样式复用列表页里的「查看全部 →」，保持全站口径一致 -->
 					<a
-						aria-label="查看全部笔记"
+						aria-label="查看全部随笔"
 						class="font-medium text-accent sm:hover:text-accent-two"
-						href="/notes/"
+						href="/essays/"
 					>
 						查看全部 →
 					</a>
 				</div>
 				<div class="grid grid-cols-1 gap-8 sm:grid-cols-2">
+					{/* 遍历最新的随笔条目，以预览卡片形式渲染 */}
 					{
-						latestNotes.map((note) => (
+						latestEssays.map((essay) => (
 							<div>
-								<Note note={note} as="h4" isPreview />
+								<Essay essay={essay} as="h4" isPreview />
 							</div>
 						))
 					}

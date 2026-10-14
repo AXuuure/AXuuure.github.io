@@ -6,5 +6,5 @@ updatedDate: "21 January 2025"
 coverImage:
   src: "./cover.jpg"
   alt: "Astro build wallpaper"
-tags: ["test", "image"]
+tags: ["test", "image", "demo"] # 追加演示标签：标记为纯语法演示文，便于与题材内正式站务文章区分
 ---

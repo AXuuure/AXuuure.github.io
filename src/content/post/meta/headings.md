@@ -3,7 +3,7 @@ title: "Example of 60 chars Master Header and other Various Headings"
 publishDate: "28 December 2024"
 description: "Demonstrating the different heading levels in Markdown by showcasing various sizes and styles of headings, including short and long examples, while also illustrating rendering and the functionality of a table of contents"
 featured: false
-tags: ["markdown", "headings", "example", "toc"]
+tags: ["markdown", "headings", "example", "toc", "demo"] # 追加演示标签：标记为纯语法演示文，便于与题材内正式站务文章区分
 ogImage: ""
 ---
 

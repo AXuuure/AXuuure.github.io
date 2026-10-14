@@ -2,7 +2,7 @@
 title: "Example OG Social Image"
 publishDate: "27 January 2023"
 description: "An example post for Astro Citrus, detailing how to add a custom social image card in the frontmatter"
-tags: ["example", "blog", "image"]
+tags: ["example", "blog", "image", "demo"] # 追加演示标签：标记为纯语法演示文，便于与题材内正式站务文章区分
 ogImage: "/social-card.png"
 ---
 

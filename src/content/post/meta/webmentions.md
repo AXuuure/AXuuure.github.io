@@ -2,7 +2,7 @@
 title: "Adding Webmentions to Astro Citrus"
 description: "This post describes the detailed process of adding webmentions to your own site, including setup, configuration, and integration with webmention services."
 publishDate: "11 Oct 2023"
-tags: ["webmentions", "astro", "social"]
+tags: ["webmentions", "astro", "social", "demo"] # 追加演示标签：标记为纯语法演示文，便于与题材内正式站务文章区分
 updatedDate: 6 December 2024
 ---
 

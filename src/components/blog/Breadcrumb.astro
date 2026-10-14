@@ -1,0 +1,21 @@
+---
+// 文章页顶部的分类面包屑：博客 / 题材 / 标题
+// v2 说明：已删除 v1 的「体裁」这一段。
+interface Props {
+	// 题材 slug 与中文名
+	topicSlug: string;
+	topicLabel: string;
+	// 当前文章标题
+	title: string;
+}
+
+const { topicSlug, topicLabel, title } = Astro.props;
+---
+
+<nav aria-label="面包屑" class="mx-2 mb-2 flex flex-wrap items-center gap-x-1 text-sm text-lighter">
+	<a class="hover:text-accent-two" href="/posts/">博客</a>
+	<span aria-hidden="true">/</span>
+	<a class="hover:text-accent-two" href={`/posts/${topicSlug}/`}>{topicLabel}</a>
+	<span aria-hidden="true">/</span>
+	<span class="text-textColor">{title}</span>
+</nav>

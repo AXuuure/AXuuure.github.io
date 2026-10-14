@@ -6,6 +6,16 @@ import Giscus from "@/components/Giscus.astro";
 import BaseLayout from "./Base.astro";
 import SeriesPanel from "@/components/SeriesPanel.astro";
 import { Icon } from "astro-icon/components";
+// 文章页分类面包屑组件（博客 / 题材 / 标题）
+import Breadcrumb from "@/components/blog/Breadcrumb.astro";
+// 文章页底部「同题材其它文章」列表组件
+import SameTopicPosts from "@/components/blog/SameTopicPosts.astro";
+// 取全部已发布文章，用于筛选同题材文章
+import { getAllPosts } from "@/data/post";
+// 复用统一的按发布日期倒序排序
+import { collectionDateSort } from "@/utils/date";
+// 题材解析与中文显示名
+import { getTopicLabel, parseTopic } from "@/data/taxonomy";
 
 interface Props {
 	post: CollectionEntry<"post">;
@@ -13,6 +23,13 @@ interface Props {
 
 const { post } = Astro.props;
 const { ogImage, title, description, updatedDate, publishDate, seriesId } = post.data;
+
+// 从文章 id 解析题材；非法目录会在此处抛错
+const topic = parseTopic(post.id);
+// 取同题材的其它文章，排除当前篇，按日期倒序
+const sameTopicPosts = (await getAllPosts())
+	.filter((item) => item.id !== post.id && parseTopic(item.id) === topic)
+	.sort(collectionDateSort);
 
 const socialImage = ogImage ?? `/og-image/${post.id}.png`;
 const articleDate = updatedDate?.toISOString() ?? publishDate.toISOString();
@@ -69,6 +86,9 @@ const { headings } = await render(post);
 	<!-- SeriesPanel is inserted into the named slot "sidebar" -->
 	{seriesId && (<SeriesPanel slot="sidebar" seriesId={seriesId} />)}
 
+	<!-- 分类面包屑：说明当前文章在题材体系中的位置 -->
+	<Breadcrumb topicSlug={topic} topicLabel={getTopicLabel(topic)} title={title} />
+
 	<Masthead content={post} />
 	
 	<div class="mt-6 flex sm:grid-cols-[auto_1fr] md:items-start gap-x-8">
@@ -87,6 +107,9 @@ const { headings } = await render(post);
 			</aside>
 		)}
 	</div>
+
+	<!-- 同题材其它文章：放在 article 之外，避免被 data-pagefind-body 收进本页搜索索引 -->
+	<SameTopicPosts posts={sameTopicPosts} topicLabel={getTopicLabel(topic)} />
 
 	<!-- 回到顶部按钮：滚动超过阈值后出现；移动端放左下角，避开右下角的系列/目录浮动按钮 -->
 	<button

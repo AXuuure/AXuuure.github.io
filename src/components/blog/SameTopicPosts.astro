@@ -1,0 +1,29 @@
+---
+// 文章页底部的「同题材其它文章」列表
+import PostPreview from "@/components/blog/PostPreview.astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+	// 同题材的其它文章（已按发布日期倒序）
+	posts: CollectionEntry<"post">[];
+	// 题材中文名，用于小标题
+	topicLabel: string;
+}
+
+const { posts, topicLabel } = Astro.props;
+---
+
+{
+	posts.length > 0 && (
+		<aside class="mt-10 border-t border-special-lighter pt-6" aria-label={`同题材文章：${topicLabel}`}>
+			<h2 class="title mb-4 text-lg">「{topicLabel}」下的其它文章</h2>
+			<ul class="space-y-3">
+				{posts.map((post) => (
+					<li>
+						<PostPreview post={post} />
+					</li>
+				))}
+			</ul>
+		</aside>
+	)
+}

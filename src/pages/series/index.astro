@@ -1,0 +1,63 @@
+---
+// /series/ ：专栏汇总页，列出全部专栏元数据与各自的文章篇数，作为专栏入口的中枢。
+import { getCollection } from "astro:content"; // 读取内容集合的统一入口
+import PageLayout from "@/layouts/Base.astro"; // 全站基础布局，负责 <head>、导航与页脚
+import { getAllPosts } from "@/data/post"; // 站点统一的文章获取函数（生产环境自动剔除草稿）
+
+// 全部专栏元数据，来自横切的 series 集合（不进目录层级）
+const allSeries = await getCollection("series");
+// 已发布文章，用于统计每个专栏下的篇数
+const allPosts = await getAllPosts();
+
+// 汇总每个专栏的展示信息与篇数，供下方列表直接渲染
+const seriesList = allSeries.map((series) => ({
+	// 专栏 id：既用于拼接跳转链接，也用于与文章的 seriesId 匹配
+	id: series.id,
+	// 专栏标题（schema 已保证 title 必填）
+	title: series.data.title,
+	// 专栏简介（schema 已保证 description 必填）
+	description: series.data.description,
+	// 该专栏下的文章数：按文章 frontmatter 的 seriesId 与专栏 id 相等来统计
+	count: allPosts.filter((post) => post.data.seriesId === series.id).length,
+}));
+
+// 页面元信息：供布局写入 <title> 与 <meta description>
+const meta = {
+	description: "本站的全部专栏：按阅读顺序组织起来的系列文章",
+	title: "专栏",
+};
+---
+
+<PageLayout meta={meta}>
+	<!-- 面包屑：与题材页保持同一形式，标明当前处于专栏层级 -->
+	<nav aria-label="面包屑" class="mb-4 flex flex-wrap items-center gap-x-1 text-sm text-lighter">
+		<a class="hover:text-accent-two" href="/posts/">博客</a> <!-- 返回博客中枢页 -->
+		<span aria-hidden="true">/</span> <!-- 分隔符，纯装饰不朗读 -->
+		<span class="text-textColor">专栏</span> <!-- 当前位置：专栏 -->
+	</nav>
+
+	<h1 class="title mb-6">专栏</h1> <!-- 页面主标题 -->
+
+	<ul class="space-y-6">
+		{
+			// 遍历每个专栏，渲染标题、简介与篇数；每条都是可点击的专栏入口
+			seriesList.map((series) => (
+				<li>
+					<h2 class="title text-lg">
+						<a class="text-accent-two sm:hover:underline" href={`/series/${series.id}/`}>
+							{/* 专栏标题，点击进入该专栏的详情页 */}
+							{series.title}
+						</a>
+					</h2>
+					<!-- 专栏简介：限两行，避免过长文案撑破卡片 -->
+					<p class="mt-1 line-clamp-2">{series.description}</p>
+					<!-- 该专栏下的文章篇数 -->
+					<p class="mt-1 text-sm text-lighter">{series.count} 篇</p>
+				</li>
+			))
+		}
+	</ul>
+
+	<!-- 空态兜底：没有任何专栏时不报错、不产出空白页 -->
+	{seriesList.length === 0 && <p class="text-lighter">还没有专栏。</p>}
+</PageLayout>

@@ -96,8 +96,12 @@ import { Icon } from "astro-icon/components";
 			aria-label="展开音乐播放器"
 			class="flex h-12 w-12 cursor-grab touch-none items-center justify-center rounded-full border border-special-lighter bg-bgColor text-accent-base shadow-[0px_10px_25px_rgba(0,0,0,0.15)] transition-colors hover:text-accent-two active:cursor-grabbing"
 		>
-			<!-- 音符图标 -->
-			<Icon class="size-6" name="hugeicons:music-note-01" />
+			<!--
+				音符图标：持续自转，暗示「这里有音乐在播放」。
+				动画类 music-note-spin 定义在 src/styles/global.css —— 放全局而不是组件局部样式，
+				是因为播放器会被克隆到 <html> 下，全局样式不受组件作用域哈希的影响，一定命中。
+			-->
+			<Icon class="size-6 music-note-spin" name="hugeicons:music-note-01" />
 		</button>
 	</div>
 </template>

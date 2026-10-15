@@ -363,3 +363,31 @@
 		@apply bg-transparent;
 	}
 }
+
+/* ===== 悬浮音乐播放器：小球内音符的持续自转 =====
+   为什么让音符一直转（而不是「播放才转、暂停就停」）：
+   面板里是网易云官方外链 iframe，跨域且不提供任何对外接口，
+   父页面既读不到它的播放状态、也控制不了它 —— 没有真实信号可以驱动动画。
+   所以这里采用常转方案：纯粹作为「这里有音乐」的视觉暗示，不反映真实的播放/暂停。
+   为什么不转整个小球：小球的阴影带 10px 纵向偏移（shadow-[0px_10px_25px_...]），
+   整体旋转会让阴影跟着绕圈、看起来在晃，所以只转里面的音符图标。 */
+@keyframes music-note-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.music-note-spin {
+	/* 3s 一圈：慢到不焦躁、又快得足以看出在转 */
+	animation: music-note-spin 3s linear infinite;
+}
+
+/* 尊重系统的「减少动态效果」设置：持续旋转属于典型的动效敏感场景，直接停掉 */
+@media (prefers-reduced-motion: reduce) {
+	.music-note-spin {
+		animation: none;
+	}
+}
